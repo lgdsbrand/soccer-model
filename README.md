@@ -3,8 +3,8 @@
 FIFA World Cup 2026 prediction and statistics web app.
 
 ## Stack
-- **Backend**: FastAPI (Python 3.12), SQLite, APScheduler
-- **Frontend**: Next.js 15, Tailwind CSS, Recharts
+- **Backend**: FastAPI (Python 3.11), SQLite, APScheduler
+- **Frontend**: Next.js 16, Tailwind CSS, Recharts
 - **Statistical model**: Dixon-Coles Poisson model + Monte Carlo simulation
 - **AI**: Groq (Llama) + Google GenAI (Gemini)
 - **Data**: API-Football (free: 100 req/day), OpenWeatherMap (free: 1000/day)
@@ -89,5 +89,5 @@ GET /insights/home           — Homepage aggregate data
 2. `cp backend/.env.example backend/.env` and fill in their keys
 3. `cp frontend/.env.local.example frontend/.env.local` and set production backend URL
 4. Deploy frontend to Vercel
-5. Deploy backend to Railway/Fly.io
+5. Deploy backend to Render (render.yaml blueprint is included)
 6. Run `python scripts/seed_historical.py --api` once to populate data
