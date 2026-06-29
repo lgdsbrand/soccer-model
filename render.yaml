@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: wc2026-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: APP_ENV
+        value: production
+      - key: GROQ_API_KEY
+        sync: false
+      - key: FOOTBALL_DATA_KEY
+        sync: false
+      - key: API_FOOTBALL_KEY
+        sync: false
+      - key: OPENWEATHERMAP_KEY
+        sync: false
+      - key: GOOGLE_GENAI_KEY
+        sync: false

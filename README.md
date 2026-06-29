@@ -5,7 +5,7 @@ FIFA World Cup 2026 prediction and statistics web app.
 ## Stack
 - **Backend**: FastAPI (Python 3.12), SQLite, APScheduler
 - **Frontend**: Next.js 15, Tailwind CSS, Recharts
-- **ML**: Dixon-Coles Poisson model + Monte Carlo simulation
+- **Statistical model**: Dixon-Coles Poisson model + Monte Carlo simulation
 - **AI**: Groq (Llama) + Google GenAI (Gemini)
 - **Data**: API-Football (free: 100 req/day), OpenWeatherMap (free: 1000/day)
 - **Plays**: Tavily web search → Groq synthesis
