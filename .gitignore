@@ -1,0 +1,28 @@
+# Backend
+backend/.env
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/.pytest_cache/
+
+# Frontend (handled by frontend/.gitignore but also cover root-level)
+frontend/node_modules/
+frontend/.next/
+frontend/.env.local
+frontend/.env
+
+# Root-level screenshots / scratch files
+*.png
+*.jpg
+*.jpeg
+dev.log
+PROJECT_LOG.md
+
+# Claude Code internal
+.claude/
+.playwright-mcp/
+
+# OS
+.DS_Store
+Thumbs.db
