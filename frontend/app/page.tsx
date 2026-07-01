@@ -59,11 +59,12 @@ export default async function HomePage() {
                   </div>
                   <TeamBadge name={next_match.away_name} logo={next_match.away_logo} fifaRank={next_match.away_fifa_rank} />
                 </div>
-                {next_match.home_win_pct != null && (() => {
+                {next_match.home_win_pct != null && next_match.draw_pct != null && next_match.away_win_pct != null && (() => {
+                  const { home_win_pct, draw_pct, away_win_pct } = next_match;
                   const isKO = !next_match.round?.startsWith("Group Stage");
-                  const total = isKO ? next_match.home_win_pct + next_match.away_win_pct : next_match.home_win_pct + next_match.draw_pct + next_match.away_win_pct;
-                  const h = Math.round((next_match.home_win_pct / total) * 100);
-                  const a = isKO ? 100 - h : Math.round((next_match.away_win_pct / total) * 100);
+                  const total = isKO ? home_win_pct + away_win_pct : home_win_pct + draw_pct + away_win_pct;
+                  const h = Math.round((home_win_pct / total) * 100);
+                  const a = isKO ? 100 - h : Math.round((away_win_pct / total) * 100);
                   const d = isKO ? 0 : 100 - h - a;
                   return (
                     <div>
