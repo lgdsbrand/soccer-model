@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from typing import List
 from app.database import get_connection
 from app.services import llm
+from app.services.predictions import get_attack_xg_ratings
 
 router = APIRouter(prefix="/teams", tags=["teams"])
 
@@ -21,6 +22,16 @@ async def get_teams():
     """)
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
+
+    ratings = get_attack_xg_ratings()
+    for row in rows:
+        rating = ratings.get(row["name"]) or {}
+        row["attack_rating"] = rating.get("attack_rating")
+        row["xg_rating"] = rating.get("xg_rating")
+        row["xga_rating"] = rating.get("xga_rating")
+        row["goals_per_game"] = rating.get("goals_per_game")
+        row["goals_allowed_per_game"] = rating.get("goals_allowed_per_game")
+
     return rows
 
 
@@ -36,6 +47,13 @@ async def get_team(team_id: int):
         raise HTTPException(status_code=404, detail="Team not found")
 
     team_dict = dict(team)
+
+    rating = get_attack_xg_ratings().get(team_dict["name"]) or {}
+    team_dict["attack_rating"] = rating.get("attack_rating")
+    team_dict["xg_rating"] = rating.get("xg_rating")
+    team_dict["xga_rating"] = rating.get("xga_rating")
+    team_dict["goals_per_game"] = rating.get("goals_per_game")
+    team_dict["goals_allowed_per_game"] = rating.get("goals_allowed_per_game")
 
     # Players
     cur.execute("SELECT * FROM players WHERE team_id = ? ORDER BY position, number", (team_id,))

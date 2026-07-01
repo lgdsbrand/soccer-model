@@ -142,6 +142,24 @@ export default function MatchCard({ fixture, compact }: Props) {
             </div>
           )}
 
+          {/* Important Stats: Attack Strength, Goals/xG, Goals Allowed/xGA */}
+          {(fixture.home_attack_rating != null || fixture.away_attack_rating != null) && (
+            <AttackRatingSection
+              homeName={fixture.home_name}
+              awayName={fixture.away_name}
+              homeAttack={fixture.home_attack_rating}
+              awayAttack={fixture.away_attack_rating}
+              homeGoals={fixture.home_goals_per_game}
+              awayGoals={fixture.away_goals_per_game}
+              homeXg={fixture.home_xg_rating}
+              awayXg={fixture.away_xg_rating}
+              homeGoalsAllowed={fixture.home_goals_allowed_per_game}
+              awayGoalsAllowed={fixture.away_goals_allowed_per_game}
+              homeXga={fixture.home_xga_rating}
+              awayXga={fixture.away_xga_rating}
+            />
+          )}
+
           {/* Last 5 Form */}
           {(fixture.home_last5?.length > 0 || fixture.away_last5?.length > 0) && (
             <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)" }}>
@@ -332,6 +350,68 @@ function FormRow({ label, results, teamId }: { label: string; results: any[]; te
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function AttackRatingSection({
+  homeName, awayName, homeAttack, awayAttack,
+  homeGoals, awayGoals, homeXg, awayXg,
+  homeGoalsAllowed, awayGoalsAllowed, homeXga, awayXga,
+}: {
+  homeName: string; awayName: string;
+  homeAttack?: number; awayAttack?: number;
+  homeGoals?: number; awayGoals?: number; homeXg?: number; awayXg?: number;
+  homeGoalsAllowed?: number; awayGoalsAllowed?: number; homeXga?: number; awayXga?: number;
+}) {
+  const fmt = (v?: number) => v != null ? v.toFixed(2) : "—";
+
+  const rows = [
+    {
+      label: "Attack Strength", homeVal: homeAttack, awayVal: awayAttack, max: 100,
+      homeText: homeAttack ?? "—", awayText: awayAttack ?? "—",
+    },
+    {
+      label: "Goals / xG", homeVal: homeGoals, awayVal: awayGoals,
+      max: Math.max(homeGoals || 0, awayGoals || 0, 1),
+      homeText: `${fmt(homeGoals)} / ${fmt(homeXg)}`, awayText: `${fmt(awayGoals)} / ${fmt(awayXg)}`,
+    },
+    {
+      label: "Goals Allowed / xGA", homeVal: homeGoalsAllowed, awayVal: awayGoalsAllowed,
+      max: Math.max(homeGoalsAllowed || 0, awayGoalsAllowed || 0, 1),
+      homeText: `${fmt(homeGoalsAllowed)} / ${fmt(homeXga)}`, awayText: `${fmt(awayGoalsAllowed)} / ${fmt(awayXga)}`,
+    },
+  ].filter(r => r.homeVal != null || r.awayVal != null);
+
+  if (!rows.length) return null;
+
+  return (
+    <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)" }}>
+      <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px", fontWeight: 600 }}>IMPORTANT STATS</div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
+        <span style={{ fontSize: "12px", fontWeight: 700 }}>{homeName}</span>
+        <span style={{ fontSize: "12px", fontWeight: 700 }}>{awayName}</span>
+      </div>
+      {rows.map(({ label, homeVal, awayVal, max, homeText, awayText }) => (
+        <div key={label} style={{ marginBottom: "10px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+            <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--accent-green)" }}>{homeText}</span>
+            <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{label}</span>
+            <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--accent-purple)" }}>{awayText}</span>
+          </div>
+          <div style={{ height: "6px", borderRadius: "3px", overflow: "hidden", display: "flex", gap: "4px" }}>
+            <div style={{ flex: 1, display: "flex", justifyContent: "flex-end" }}>
+              <div style={{ width: `${((homeVal || 0) / max) * 100}%`, backgroundColor: "var(--accent-green)", borderRadius: "3px" }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ width: `${((awayVal || 0) / max) * 100}%`, backgroundColor: "var(--accent-purple)", borderRadius: "3px" }} />
+            </div>
+          </div>
+        </div>
+      ))}
+      <div style={{ marginTop: "10px", fontSize: "11px", color: "var(--text-muted)", textAlign: "center" }}>
+        Attack Strength on a 0-100 scale
       </div>
     </div>
   );

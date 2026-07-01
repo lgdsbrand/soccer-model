@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from typing import List, Optional
 from app.database import get_connection
 from app.services import api_football, weather as weather_svc, llm, recommended_plays
-from app.services.predictions import compute_and_store_prediction
+from app.services.predictions import compute_and_store_prediction, get_attack_xg_ratings
 from app.models.schemas import MatchCard, MatchResult, Lineup, LineupPlayer
 
 router = APIRouter(prefix="/fixtures", tags=["fixtures"])
@@ -166,6 +166,17 @@ async def get_fixture_detail(fixture_id: int, background_tasks: BackgroundTasks)
         except Exception:
             fixture["lineups"] = []
 
+    # teams.formation_default is never populated (NULL for all 48 teams) — use
+    # the actual formation from the fetched/generated lineup instead, since
+    # that's real data (confirmed lineup or LLM prediction) already sitting
+    # in the lineups table but previously never surfaced to the UI.
+    for entry in fixture.get("lineups", []):
+        if entry.get("formation"):
+            if entry.get("team_id") == fixture["home_team_id"]:
+                fixture["home_formation"] = entry["formation"]
+            elif entry.get("team_id") == fixture["away_team_id"]:
+                fixture["away_formation"] = entry["formation"]
+
     # Match stats (shots, corners, fouls) for finished matches
     fixture["home_match_stats"] = None
     fixture["away_match_stats"] = None
@@ -180,6 +191,21 @@ async def get_fixture_detail(fixture_id: int, background_tasks: BackgroundTasks)
                         fixture["away_match_stats"] = s
         except Exception:
             pass
+
+    # Attack Rating (0-100) + Goals/xG + Goals Allowed/xGA, derived from the Dixon-Coles model
+    ratings = get_attack_xg_ratings()
+    home_rating = ratings.get(fixture["home_name"]) or {}
+    away_rating = ratings.get(fixture["away_name"]) or {}
+    fixture["home_attack_rating"] = home_rating.get("attack_rating")
+    fixture["home_xg_rating"] = home_rating.get("xg_rating")
+    fixture["home_xga_rating"] = home_rating.get("xga_rating")
+    fixture["home_goals_per_game"] = home_rating.get("goals_per_game")
+    fixture["home_goals_allowed_per_game"] = home_rating.get("goals_allowed_per_game")
+    fixture["away_attack_rating"] = away_rating.get("attack_rating")
+    fixture["away_xg_rating"] = away_rating.get("xg_rating")
+    fixture["away_xga_rating"] = away_rating.get("xga_rating")
+    fixture["away_goals_per_game"] = away_rating.get("goals_per_game")
+    fixture["away_goals_allowed_per_game"] = away_rating.get("goals_allowed_per_game")
 
     # Avg stats (last 5 games)
     try:

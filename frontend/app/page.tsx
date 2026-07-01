@@ -22,8 +22,7 @@ export default async function HomePage() {
           🏆 FIFA World Cup 2026
         </h1>
         <p style={{ fontSize: "14px", color: "var(--text-muted)", marginTop: "4px" }}>
-          USA · Canada · Mexico · {stats.matches_played} matches played · {stats.total_goals} goals
-          {stats.matches_played > 0 && ` · ${stats.avg_goals_per_match} avg/match`}
+          Hosted by USA · Canada · Mexico
         </p>
       </div>
 

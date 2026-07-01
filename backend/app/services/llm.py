@@ -4,12 +4,23 @@ Google GenAI (full AI analysis card).
 All outputs cached in SQLite.
 """
 import json
+import re
 import time
 from typing import Optional, Dict, List
 from app.config import get_settings
 from app.database import get_connection
 
 settings = get_settings()
+
+_FORMATION_PATTERN = re.compile(r"\b([3-5](?:-[1-5]){2,3})\b")
+
+
+def _extract_formation(style_text: Optional[str]) -> Optional[str]:
+    """Pull a formation like '4-3-3' or '4-2-3-1' out of a style-of-play description."""
+    if not style_text:
+        return None
+    match = _FORMATION_PATTERN.search(style_text)
+    return match.group(1) if match else None
 
 
 def _get_cached(key: str, ttl: int = None) -> Optional[str]:
@@ -130,17 +141,29 @@ async def get_predicted_lineup(
     if cached:
         return json.loads(cached)
 
+    # No formation hint passed in (teams.formation_default is unpopulated) —
+    # fall back to the real, team-specific formation already generated for
+    # the style-of-play section, rather than leaving the model with nothing.
+    if not formation:
+        formation = _extract_formation(await get_style_of_play(team_name))
+
     players_hint = ""
     if known_players:
         players_hint = f"Known squad members include: {', '.join(known_players[:15])}."
 
+    formation_instruction = (
+        f"Use exactly this formation: {formation}."
+        if formation else
+        "Choose the formation that matches this team's real, well-known tactical identity — do not default to a generic choice."
+    )
+
     prompt = f"""Predict the most likely starting XI for {team_name} at the 2026 FIFA World Cup.
-Formation: {formation or 'most common'}.
+{formation_instruction}
 {players_hint}
 
-Return ONLY a JSON object with this exact structure:
+Return ONLY a JSON object with this exact structure — replace every placeholder below with real values, do not copy the example formation:
 {{
-  "formation": "4-3-3",
+  "formation": "<the formation you are using, e.g. 4-2-3-1>",
   "players": [
     {{"name": "Player Name", "position": "GK", "number": 1, "grid": "1:1"}},
     ...

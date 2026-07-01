@@ -126,6 +126,20 @@ CONFED_STRENGTH = {
     "OFC":      0.376,
 }
 
+# football-data.org's WC2026 team names differ from the Kaggle historical
+# dataset's naming for these three teams, so fitted model params were silently
+# never found at prediction time (fell through to the generic 40/25/35 default
+# for every match involving them). Resolve to the fitted name before lookup.
+TEAM_NAME_ALIASES = {
+    "Bosnia-Herzegovina": "Bosnia and Herzegovina",
+    "Cape Verde Islands": "Cape Verde",
+    "Congo DR": "DR Congo",
+}
+
+
+def _resolve_team_name(name: str) -> str:
+    return TEAM_NAME_ALIASES.get(name, name)
+
 
 def _confederation_weight(home_team: str, away_team: str) -> Optional[float]:
     """
@@ -312,6 +326,9 @@ def predict_match(
     home_adv = model_params.get("home_adv", 0.1)
     rho = model_params.get("rho", 0.0)
 
+    home_team = _resolve_team_name(home_team)
+    away_team = _resolve_team_name(away_team)
+
     if home_team not in attacks or away_team not in attacks:
         return _default_prediction()
 
@@ -418,6 +435,97 @@ def _load_params_from_db() -> Optional[Dict]:
 
     conn.close()
     return {"attacks": attacks, "defenses": defenses, "home_adv": home_adv, "rho": rho}
+
+
+def get_attack_xg_ratings() -> Dict[str, Dict[str, float]]:
+    """
+    Per-team Attack Rating (0-100, min-max normalized across the 48 WC2026
+    teams) and xG Rating (expected goals per match against a *World Cup
+    caliber* defense) derived from the fitted Dixon-Coles attack parameter.
+    No external data source needed — this is a re-expression of the same
+    attack strength already used for match predictions.
+
+    The model is fitted on 222 FIFA nations, most of which are far weaker
+    than any World Cup qualifier — so "defense = 0" (the model's global
+    average) represents a mediocre non-qualifying nation's defense, not a
+    World Cup opponent's. Using it as the xG baseline inflated every team's
+    number (e.g. Norway showed 3.9 goals/game, which is not realistic for
+    a team playing fellow World Cup sides). Instead we use the *average
+    defense among the 48 WC2026 teams themselves* as the baseline, so the
+    number reads as "goals against a typical World Cup opponent."
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT t.name, tmp.attack, tmp.defense
+        FROM teams t
+        JOIN team_model_params tmp ON tmp.team_name = t.name
+        WHERE t.group_letter IS NOT NULL AND t.name != 'TBD'
+    """)
+    rows = cur.fetchall()
+    conn.close()
+
+    attacks = {r["name"]: r["attack"] for r in rows}
+    defenses = {r["name"]: r["defense"] for r in rows}
+
+    # Pick up the 3 teams whose football-data.org name differs from the
+    # fitted model's name (see TEAM_NAME_ALIASES).
+    if len(attacks) < 48:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT name FROM teams
+            WHERE group_letter IS NOT NULL AND name != 'TBD' AND name NOT IN ({})
+        """.format(",".join("?" * len(attacks))), list(attacks.keys()))
+        missing = [r["name"] for r in cur.fetchall()]
+        if missing:
+            cur.execute("SELECT team_name, attack, defense FROM team_model_params")
+            by_fitted_name = {r["team_name"]: (r["attack"], r["defense"]) for r in cur.fetchall()}
+            for name in missing:
+                fitted_name = _resolve_team_name(name)
+                if fitted_name in by_fitted_name:
+                    attacks[name], defenses[name] = by_fitted_name[fitted_name]
+        conn.close()
+
+    if not attacks:
+        return {}
+
+    values = list(attacks.values())
+    lo, hi = min(values), max(values)
+    spread = hi - lo if hi > lo else 1.0
+    avg_wc_defense = sum(defenses.values()) / len(defenses)
+    avg_wc_attack = sum(attacks[n] for n in defenses) / len(defenses)
+
+    # Actual goals scored/allowed per game, from real finished (FT) matches —
+    # the counterpart to xG/xGA, which are model estimates rather than
+    # observed results.
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT t.name,
+            SUM(CASE WHEN f.home_team_id = t.id THEN f.home_score ELSE f.away_score END) as gf,
+            SUM(CASE WHEN f.home_team_id = t.id THEN f.away_score ELSE f.home_score END) as ga,
+            COUNT(*) as played
+        FROM teams t
+        JOIN fixtures f ON (f.home_team_id = t.id OR f.away_team_id = t.id) AND f.status = 'FT'
+        WHERE t.group_letter IS NOT NULL AND t.name != 'TBD'
+        GROUP BY t.id
+    """)
+    actuals = {r["name"]: (r["gf"], r["ga"], r["played"]) for r in cur.fetchall()}
+    conn.close()
+
+    result = {}
+    for name, a in attacks.items():
+        d = defenses[name]
+        gf, ga, played = actuals.get(name, (None, None, 0))
+        result[name] = {
+            "attack_rating": round((a - lo) / spread * 100, 1),
+            "xg_rating": round(float(np.exp(a + avg_wc_defense)), 2),
+            "xga_rating": round(float(np.exp(avg_wc_attack + d)), 2),
+            "goals_per_game": round(gf / played, 2) if played else None,
+            "goals_allowed_per_game": round(ga / played, 2) if played else None,
+        }
+    return result
 
 
 def compute_and_store_prediction(fixture_id: int, home_team: str, away_team: str) -> Optional[Dict]:

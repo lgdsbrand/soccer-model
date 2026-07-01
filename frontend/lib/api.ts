@@ -4,7 +4,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: { "Content-Type": "application/json", ...options?.headers },
-    next: { revalidate: 60 }, // 1-min cache for server components
+    cache: "no-store", // backend already caches appropriately (LLM outputs, predictions, hourly scheduler) — an extra frontend cache here just causes stale-looking pages
   });
   if (!res.ok) throw new Error(`API ${path} returned ${res.status}`);
   return res.json();
@@ -36,6 +36,11 @@ export interface Team {
   style_of_play?: string;
   formation_default?: string;
   fifa_rank?: number;
+  attack_rating?: number;
+  xg_rating?: number;
+  xga_rating?: number;
+  goals_per_game?: number;
+  goals_allowed_per_game?: number;
 }
 
 export interface Fixture {
@@ -62,6 +67,16 @@ export interface Fixture {
   away_group?: string;
   home_fifa_rank?: number;
   away_fifa_rank?: number;
+  home_attack_rating?: number;
+  away_attack_rating?: number;
+  home_xg_rating?: number;
+  away_xg_rating?: number;
+  home_xga_rating?: number;
+  away_xga_rating?: number;
+  home_goals_per_game?: number;
+  away_goals_per_game?: number;
+  home_goals_allowed_per_game?: number;
+  away_goals_allowed_per_game?: number;
 }
 
 export interface MatchStat {
