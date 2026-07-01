@@ -3,8 +3,15 @@ Recommended plays: Tavily web search → Groq synthesis.
 Replicates Tyler's manual process (reading Covers, ESPN, etc.) automatically.
 """
 import json
+import re
 import time
 from typing import Optional, Dict
+
+
+def _extract_field(text: str, field: str) -> Optional[str]:
+    """Regex-recover a string field from JSON that may be truncated mid-response."""
+    m = re.search(rf'"{field}"\s*:\s*"([^"]*)', text)
+    return m.group(1) if m else None
 from app.config import get_settings
 from app.database import get_connection
 from app.services.llm import _groq_complete, _get_cached, _set_cached
@@ -44,26 +51,38 @@ Provide:
 
 Format as JSON: {{"primary_bet": "...", "confidence": "...", "reasoning": "...", "alternative": "..."}}"""
 
-    content = _groq_complete(prompt, model="llama-3.3-70b-versatile", max_tokens=250)
+    content = _groq_complete(prompt, model="llama-3.3-70b-versatile", max_tokens=400)
 
     result = {
-        "primary_bet": f"{home_team} vs {away_team} — Analysis loading",
+        "primary_bet": "Recommendation unavailable",
         "confidence": "Medium",
-        "reasoning": "Model data is being processed.",
+        "reasoning": "Unable to generate a recommendation for this match yet — check back soon.",
         "alternative": None,
         "search_used": bool(search_results),
     }
 
     if content:
+        start = content.find("{")
+        end = content.rfind("}") + 1
+        raw = content[start:end] if start >= 0 and end > start else content
         try:
-            start = content.find("{")
-            end = content.rfind("}") + 1
-            if start >= 0 and end > start:
-                parsed = json.loads(content[start:end])
-                result.update(parsed)
-                result["search_used"] = bool(search_results)
+            parsed = json.loads(raw)
+            result.update(parsed)
+            result["search_used"] = bool(search_results)
         except (json.JSONDecodeError, ValueError):
-            result["reasoning"] = content[:200]
+            # Response was likely truncated mid-JSON (hit max_tokens) — recover
+            # whatever fields completed before the cutoff instead of leaving
+            # the placeholder primary_bet/reasoning in the cached result.
+            primary = _extract_field(raw, "primary_bet")
+            confidence = _extract_field(raw, "confidence")
+            reasoning = _extract_field(raw, "reasoning")
+            if primary:
+                result["primary_bet"] = primary
+            if confidence:
+                result["confidence"] = confidence
+            if reasoning:
+                result["reasoning"] = reasoning
+            result["search_used"] = bool(search_results)
 
     _set_cached(f"play_v2:{fixture_id}", json.dumps(result))
     return result

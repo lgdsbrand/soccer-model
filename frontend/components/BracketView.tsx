@@ -82,7 +82,7 @@ function StraightConnector({ n, H }: { n: number; H: number }) {
 
 function MatchCol({ matches, H, isFinal }: { matches: Fixture[]; H: number; isFinal?: boolean }) {
   return (
-    <div style={{ width: COL_W, height: H, display: "flex", flexDirection: "column", justifyContent: "space-around" }}>
+    <div style={{ width: COL_W, height: H, flexShrink: 0, display: "flex", flexDirection: "column", justifyContent: "space-around" }}>
       {matches.map(f => <BracketMatch key={f.id} fixture={f} isFinal={isFinal} />)}
     </div>
   );
@@ -91,7 +91,7 @@ function MatchCol({ matches, H, isFinal }: { matches: Fixture[]; H: number; isFi
 function ColHeader({ label, isCenter }: { label: string; isCenter?: boolean }) {
   return (
     <div style={{
-      width: COL_W, height: 36,
+      width: COL_W, height: 36, flexShrink: 0,
       display: "flex", alignItems: "center", justifyContent: "center", gap: "5px",
     }}>
       {isCenter && <span style={{ fontSize: "15px" }}>🏆</span>}
@@ -191,15 +191,15 @@ export default function BracketView({ fixtures }: { fixtures: Fixture[] }) {
     <div style={{ overflowX: "auto" }}>
       {/* Column headers */}
       <div style={{ display: "flex" }}>
-        {hasR32 && <><ColHeader label="R32" /><div style={{ width: CON_W }} /></>}
-        <ColHeader label="R16" /><div style={{ width: CON_W }} />
-        <ColHeader label="QF" /><div style={{ width: CON_W }} />
-        <ColHeader label="SF" /><div style={{ width: CON_W }} />
+        {hasR32 && <><ColHeader label="R32" /><div style={{ width: CON_W, flexShrink: 0 }} /></>}
+        <ColHeader label="R16" /><div style={{ width: CON_W, flexShrink: 0 }} />
+        <ColHeader label="QF" /><div style={{ width: CON_W, flexShrink: 0 }} />
+        <ColHeader label="SF" /><div style={{ width: CON_W, flexShrink: 0 }} />
         <ColHeader label="Final" isCenter />
-        <div style={{ width: CON_W }} /><ColHeader label="SF" />
-        <div style={{ width: CON_W }} /><ColHeader label="QF" />
-        <div style={{ width: CON_W }} /><ColHeader label="R16" />
-        {hasR32 && <><div style={{ width: CON_W }} /><ColHeader label="R32" /></>}
+        <div style={{ width: CON_W, flexShrink: 0 }} /><ColHeader label="SF" />
+        <div style={{ width: CON_W, flexShrink: 0 }} /><ColHeader label="QF" />
+        <div style={{ width: CON_W, flexShrink: 0 }} /><ColHeader label="R16" />
+        {hasR32 && <><div style={{ width: CON_W, flexShrink: 0 }} /><ColHeader label="R32" /></>}
       </div>
 
       {/* Bracket body */}
@@ -219,7 +219,7 @@ export default function BracketView({ fixtures }: { fixtures: Fixture[] }) {
         <StraightConnector n={lSF} H={H} />
 
         {/* FINAL (center) */}
-        <div style={{ width: COL_W, height: H, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: COL_W, height: H, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
           {finalMatches[0]
             ? <div style={{ width: "100%" }}><BracketMatch fixture={finalMatches[0]} isFinal /></div>
             : (
