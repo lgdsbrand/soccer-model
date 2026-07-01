@@ -31,8 +31,7 @@ python scripts/seed_historical.py --api
 uvicorn app.main:app --reload --port 8000
 ```
 
-Backend runs at: http://localhost:8000  
-API docs: http://localhost:8000/docs
+Backend runs at: http://localhost:8000
 
 ### 2. Frontend
 
