@@ -10,9 +10,28 @@ FIFA World Cup 2026 prediction and statistics web app.
 - **Data**: API-Football (free: 100 req/day), OpenWeatherMap (free: 1000/day)
 - **Plays**: Tavily web search → Groq synthesis
 
-## Setup
+---
 
-### 1. Backend
+## 1. Get Your API Keys
+
+The backend needs 5 free-tier API keys. None of these require a credit card. Budget about 15 minutes to sign up for all of them.
+
+| # | Service | What it's used for | Free tier limit | Sign up |
+|---|---------|--------------------|-------------------|---------|
+| 1 | **API-Football** | Player lineups, last-5 match stats | 100 requests/day | [dashboard.api-football.com](https://dashboard.api-football.com) → Register → copy the key from your dashboard |
+| 2 | **football-data.org** | Live WC2026 fixtures, standings, teams | No daily cap | [football-data.org/client/register](https://www.football-data.org/client/register) → confirm via email → key is emailed to you |
+| 3 | **OpenWeatherMap** | Match-day weather by venue | 1,000 calls/day | [openweathermap.org/api](https://openweathermap.org/api) → sign up → API keys tab (can take up to 2 hours to activate after signup) |
+| 4 | **Tavily** | Live news search for injury/lineup context | 1,000 searches/month | [tavily.com](https://tavily.com) → sign up → key shown on your dashboard immediately |
+| 5 | **Groq** | Fast/cheap LLM calls (style of play, lineups, recommended plays) | Generous free tier | [console.groq.com](https://console.groq.com) → sign up → API Keys → Create Key |
+| 6 | **Google GenAI (Gemini)** | Primary AI match analysis (Groq is the fallback) | Free tier | [aistudio.google.com](https://aistudio.google.com) → Get API Key → Create API key |
+
+Keep all 6 values somewhere safe (a password manager, not a text file that could get committed) — you'll paste each one into two places: your local `.env` file (step 2) and your Render dashboard (step 3).
+
+---
+
+## 2. Local Development Setup
+
+### Backend
 
 ```bash
 cd backend
@@ -22,7 +41,7 @@ python -m venv venv
 pip install -r requirements.txt
 
 cp .env.example .env
-# Edit .env and add your API keys
+# Open .env and paste in the 6 keys from step 1
 
 # Seed initial data (uses ~60 API-Football calls)
 python scripts/seed_historical.py --api
@@ -33,28 +52,47 @@ uvicorn app.main:app --reload --port 8000
 
 Backend runs at: http://localhost:8000
 
-### 2. Frontend
+### Frontend
 
 ```bash
 cd frontend
 npm install
 cp .env.local.example .env.local
-# Edit NEXT_PUBLIC_API_URL if needed
+# Leave NEXT_PUBLIC_API_URL as http://localhost:8000 for local dev
 
 npm run dev
 ```
 
 Frontend runs at: http://localhost:3000
 
-## API Keys Required
+---
 
-| Service | Free Tier | Where to Get |
-|---------|-----------|-------------|
-| API-Football | 100 req/day | https://dashboard.api-football.com |
-| OpenWeatherMap | 1,000/day | https://openweathermap.org/api |
-| Tavily | 1,000/month | https://tavily.com |
-| Groq | Very cheap | https://console.groq.com |
-| Google GenAI | Free tier | https://aistudio.google.com |
+## 3. Production Deployment
+
+Two separate services, deployed independently:
+
+### Backend → Render
+
+1. [dashboard.render.com](https://dashboard.render.com) → log in with GitHub → **New +** → **Blueprint**
+2. Select this repo (grant Render access if it's private) — it auto-detects `render.yaml`
+3. Paste the same 6 keys from step 1 into the environment variable fields it prompts for
+4. Deploy — copy the resulting URL (e.g. `https://your-service.onrender.com`) once it's live
+
+**Free tier note:** Render's free web services sleep after 15 minutes idle and take ~30-60s to wake on the next request.
+
+### Frontend → Vercel
+
+1. [vercel.com/new](https://vercel.com/new) → log in with GitHub → import this repo
+2. Set **Root Directory** to `frontend`
+3. Add environment variable `NEXT_PUBLIC_API_URL` = your Render URL from above
+4. Deploy
+
+### After both are live
+
+- No CORS setup needed — the backend allows all origins automatically when `APP_ENV=production` (set in `render.yaml`)
+- Run `python scripts/seed_historical.py --api` once against production if the deployed database needs seeding from scratch
+
+---
 
 ## Key Endpoints
 
@@ -66,7 +104,7 @@ GET /fixtures/{id}           — Full match card (weather, lineups, prediction, 
 GET /standings/groups        — Group standings
 GET /standings/bracket       — Knockout stage fixtures
 GET /teams/                  — All teams
-GET /teams/{id}              — Team detail + squad + style of play
+GET /teams/{id}               — Team detail + squad + style of play
 GET /predictions/advancement — Tournament advancement probabilities
 POST /predictions/run-monte-carlo — Trigger simulation (background)
 POST /predictions/refit-model    — Refit Dixon-Coles model (background)
@@ -81,12 +119,3 @@ GET /insights/home           — Homepage aggregate data
 - 10,000 Monte Carlo simulations for advancement probabilities
 
 **Expected accuracy**: ~54-57% on 3-outcome predictions (baseline: 33%)
-
-## Handoff to Tyler's Team
-
-1. Clone repo
-2. `cp backend/.env.example backend/.env` and fill in their keys
-3. `cp frontend/.env.local.example frontend/.env.local` and set production backend URL
-4. Deploy frontend to Vercel
-5. Deploy backend to Render (render.yaml blueprint is included)
-6. Run `python scripts/seed_historical.py --api` once to populate data
