@@ -21,3 +21,5 @@ services:
         sync: false
       - key: GOOGLE_GENAI_KEY
         sync: false
+      - key: TAVILY_KEY
+        sync: false
