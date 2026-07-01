@@ -19,8 +19,8 @@ async def get_fixtures(
     cur = conn.cursor()
 
     query = """
-        SELECT f.*, ht.name as home_name, ht.logo as home_logo, ht.code as home_code,
-               at.name as away_name, at.logo as away_logo, at.code as away_code
+        SELECT f.*, ht.name as home_name, ht.logo as home_logo, ht.code as home_code, ht.fifa_rank as home_fifa_rank,
+               at.name as away_name, at.logo as away_logo, at.code as away_code, at.fifa_rank as away_fifa_rank
         FROM fixtures f
         JOIN teams ht ON f.home_team_id = ht.id
         JOIN teams at ON f.away_team_id = at.id
@@ -55,8 +55,8 @@ async def get_today_fixtures():
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
-        SELECT f.*, ht.name as home_name, ht.logo as home_logo, ht.group_letter as home_group,
-               at.name as away_name, at.logo as away_logo, at.group_letter as away_group
+        SELECT f.*, ht.name as home_name, ht.logo as home_logo, ht.group_letter as home_group, ht.fifa_rank as home_fifa_rank,
+               at.name as away_name, at.logo as away_logo, at.group_letter as away_group, at.fifa_rank as away_fifa_rank
         FROM fixtures f
         JOIN teams ht ON f.home_team_id = ht.id
         JOIN teams at ON f.away_team_id = at.id
@@ -75,8 +75,8 @@ async def get_next_fixture():
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
-        SELECT f.*, ht.name as home_name, ht.logo as home_logo, ht.group_letter as home_group,
-               at.name as away_name, at.logo as away_logo, at.group_letter as away_group,
+        SELECT f.*, ht.name as home_name, ht.logo as home_logo, ht.group_letter as home_group, ht.fifa_rank as home_fifa_rank,
+               at.name as away_name, at.logo as away_logo, at.group_letter as away_group, at.fifa_rank as away_fifa_rank,
                p.home_win_pct, p.draw_pct, p.away_win_pct, p.btts_pct, p.over_1_5_pct
         FROM fixtures f
         JOIN teams ht ON f.home_team_id = ht.id
@@ -104,9 +104,9 @@ async def get_fixture_detail(fixture_id: int, background_tasks: BackgroundTasks)
     cur.execute("""
         SELECT f.*,
                ht.name as home_name, ht.logo as home_logo, ht.group_letter as home_group,
-               ht.coach as home_coach, ht.formation_default as home_formation,
+               ht.coach as home_coach, ht.formation_default as home_formation, ht.fifa_rank as home_fifa_rank,
                at.name as away_name, at.logo as away_logo, at.group_letter as away_group,
-               at.coach as away_coach, at.formation_default as away_formation
+               at.coach as away_coach, at.formation_default as away_formation, at.fifa_rank as away_fifa_rank
         FROM fixtures f
         JOIN teams ht ON f.home_team_id = ht.id
         JOIN teams at ON f.away_team_id = at.id
@@ -244,6 +244,18 @@ async def get_fixture_detail(fixture_id: int, background_tasks: BackgroundTasks)
         fixture["away_key_players"] = await llm.get_key_players(fixture["away_name"])
     except Exception:
         fixture["away_key_players"] = []
+
+    # Style of play
+    try:
+        fixture["home_style_of_play"] = await llm.get_style_of_play(fixture["home_name"], fixture.get("home_coach"))
+    except Exception as e:
+        print(f"Style of play failed for {fixture['home_name']}: {e}")
+        fixture["home_style_of_play"] = None
+    try:
+        fixture["away_style_of_play"] = await llm.get_style_of_play(fixture["away_name"], fixture.get("away_coach"))
+    except Exception as e:
+        print(f"Style of play failed for {fixture['away_name']}: {e}")
+        fixture["away_style_of_play"] = None
 
     return fixture
 

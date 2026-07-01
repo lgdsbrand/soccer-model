@@ -13,7 +13,7 @@ const ROUND_SHORT: Record<string, string> = {
 
 const COL_W = 152;
 const CON_W = 28;
-const CARD_H = 62;
+const CARD_H = 74;
 const LINE = "rgba(255,255,255,0.14)";
 const GOLD = "rgba(255,180,0,0.4)";
 const CARD_BG = "#1a1a30";
@@ -105,6 +105,37 @@ function ColHeader({ label, isCenter }: { label: string; isCenter?: boolean }) {
 
 const SEMI_ROUNDS = ["Round of 32", "Round of 16", "Quarter-finals", "Semi-finals"] as const;
 
+// Given the already-fixed order of a later round, place each earlier-round match
+// directly behind its true parent slot by tracing team IDs (a team can only have
+// come from the one earlier-round fixture it actually played in). This replaces
+// naive "split in half, pair by index" — which silently assumes fixture order
+// reflects real bracket adjacency, and produces visually wrong connector lines
+// whenever it doesn't (e.g. a knockout draw isn't simply date-ordered pairs).
+// Falls back to original order for legs that are still fully TBD on both sides,
+// since there's no lineage to trace yet and any order is equally provisional.
+function reorderByLineage(laterOrdered: Fixture[], earlierMatches: Fixture[]): Fixture[] {
+  const used = new Set<number>();
+  const result: Fixture[] = [];
+  for (const laterMatch of laterOrdered) {
+    for (const teamId of [laterMatch.home_team_id, laterMatch.away_team_id]) {
+      let parent = teamId != null
+        ? earlierMatches.find(m => !used.has(m.id) && (m.home_team_id === teamId || m.away_team_id === teamId))
+        : undefined;
+      if (!parent) {
+        parent = earlierMatches.find(m => !used.has(m.id));
+      }
+      if (parent) {
+        used.add(parent.id);
+        result.push(parent);
+      }
+    }
+  }
+  for (const m of earlierMatches) {
+    if (!used.has(m.id)) result.push(m);
+  }
+  return result;
+}
+
 export default function BracketView({ fixtures }: { fixtures: Fixture[] }) {
   const byRound: Record<string, Fixture[]> = {};
   for (const f of fixtures) {
@@ -124,11 +155,22 @@ export default function BracketView({ fixtures }: { fixtures: Fixture[] }) {
     );
   }
 
+  // Correct each round's order (bottom-up isn't right either — the ground truth
+  // flows from whichever round already has real teams in it, so we anchor on
+  // the Final and work backward; any leg with no confirmed teams yet is a no-op
+  // and keeps its original order).
+  const REORDER_CHAIN = ["Final", "Semi-finals", "Quarter-finals", "Round of 16", "Round of 32"] as const;
+  const orderedByRound: Record<string, Fixture[]> = { Final: byRound["Final"] || [] };
+  for (let i = 1; i < REORDER_CHAIN.length; i++) {
+    const round = REORDER_CHAIN[i];
+    orderedByRound[round] = reorderByLineage(orderedByRound[REORDER_CHAIN[i - 1]] || [], byRound[round] || []);
+  }
+
   // Split each pre-final round into left (first half) and right (second half)
   const L: Record<string, Fixture[]> = {};
   const R: Record<string, Fixture[]> = {};
   for (const r of SEMI_ROUNDS) {
-    const all = byRound[r] || [];
+    const all = orderedByRound[r] || [];
     const half = Math.ceil(all.length / 2);
     L[r] = all.slice(0, half);
     R[r] = all.slice(half);
@@ -248,12 +290,14 @@ function BracketMatch({ fixture, isFinal }: { fixture: Fixture; isFinal?: boolea
           e.currentTarget.style.boxShadow = "none";
         }}
       >
-        <TeamRow name={fixture.home_name} logo={fixture.home_logo}
-          score={isFinished || isLive ? (fixture.home_score ?? 0) : undefined}
-          isWinner={homeWin} isTbd={isTbd(fixture.home_name)} showBorder />
-        <TeamRow name={fixture.away_name} logo={fixture.away_logo}
-          score={isFinished || isLive ? (fixture.away_score ?? 0) : undefined}
-          isWinner={awayWin} isTbd={isTbd(fixture.away_name)} showBorder={false} />
+        <div style={{ height: CARD_H, display: "flex", flexDirection: "column" }}>
+          <TeamRow name={fixture.home_name} logo={fixture.home_logo}
+            score={isFinished || isLive ? (fixture.home_score ?? 0) : undefined}
+            isWinner={homeWin} isTbd={isTbd(fixture.home_name)} showBorder />
+          <TeamRow name={fixture.away_name} logo={fixture.away_logo}
+            score={isFinished || isLive ? (fixture.away_score ?? 0) : undefined}
+            isWinner={awayWin} isTbd={isTbd(fixture.away_name)} showBorder={false} />
+        </div>
         {isLive && (
           <div style={{ padding: "3px 10px", borderTop: "1px solid rgba(0,208,132,0.2)", backgroundColor: "rgba(0,208,132,0.08)", display: "flex", gap: "5px", alignItems: "center" }}>
             <div style={{ width: 5, height: 5, borderRadius: "50%", backgroundColor: "var(--accent-green)" }} />
@@ -270,7 +314,8 @@ function TeamRow({ name, logo, score, isWinner, isTbd, showBorder }: {
 }) {
   return (
     <div style={{
-      display: "flex", alignItems: "center", gap: "7px", padding: "7px 10px",
+      flex: "1 1 0", minHeight: 0, boxSizing: "border-box",
+      display: "flex", alignItems: "center", gap: "7px", padding: "0 10px",
       borderBottom: showBorder ? `1px solid ${ROW_SEP}` : "none",
       backgroundColor: isWinner ? "rgba(0,208,132,0.07)" : "transparent",
     }}>

@@ -6,10 +6,11 @@ DB_PATH = Path(__file__).parent.parent / "wc2026.db"
 
 
 def get_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
+    conn = sqlite3.connect(str(DB_PATH), check_same_thread=False, timeout=10)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute("PRAGMA busy_timeout=10000")
     return conn
 
 
@@ -28,6 +29,7 @@ def init_db():
             coach TEXT,
             formation_default TEXT,
             style_of_play TEXT,
+            fifa_rank INTEGER,
             updated_at REAL DEFAULT (unixepoch())
         );
 
@@ -223,6 +225,13 @@ def init_db():
             conn.commit()
         except Exception:
             pass  # column already exists
+
+    # Migration: add fifa_rank column to teams
+    try:
+        conn.execute("ALTER TABLE teams ADD COLUMN fifa_rank INTEGER")
+        conn.commit()
+    except Exception:
+        pass  # column already exists
 
     conn.commit()
     conn.close()

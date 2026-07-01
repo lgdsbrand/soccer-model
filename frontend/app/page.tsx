@@ -52,28 +52,35 @@ export default async function HomePage() {
             <Link href={`/matches/${next_match.id}`} style={{ textDecoration: "none" }}>
               <div style={{ padding: "20px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
-                  <TeamBadge name={next_match.home_name} logo={next_match.home_logo} />
+                  <TeamBadge name={next_match.home_name} logo={next_match.home_logo} fifaRank={next_match.home_fifa_rank} />
                   <div style={{ flex: 1, textAlign: "center" }}>
                     <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "4px" }}>{next_match.round}</div>
                     <div style={{ fontSize: "18px", fontWeight: 700, color: "var(--accent-green)" }}>{formatTime(next_match.date_utc)}</div>
                     <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{formatDate(next_match.date_utc)}</div>
                   </div>
-                  <TeamBadge name={next_match.away_name} logo={next_match.away_logo} />
+                  <TeamBadge name={next_match.away_name} logo={next_match.away_logo} fifaRank={next_match.away_fifa_rank} />
                 </div>
-                {next_match.home_win_pct != null && (
-                  <div>
-                    <div style={{ height: "8px", borderRadius: "4px", overflow: "hidden", display: "flex", marginBottom: "6px" }}>
-                      <div style={{ width: `${next_match.home_win_pct}%`, backgroundColor: "var(--accent-green)" }} />
-                      <div style={{ width: `${next_match.draw_pct}%`, backgroundColor: "var(--border)" }} />
-                      <div style={{ width: `${next_match.away_win_pct}%`, backgroundColor: "var(--accent-purple)" }} />
+                {next_match.home_win_pct != null && (() => {
+                  const isKO = !next_match.round?.startsWith("Group Stage");
+                  const total = isKO ? next_match.home_win_pct + next_match.away_win_pct : next_match.home_win_pct + next_match.draw_pct + next_match.away_win_pct;
+                  const h = Math.round((next_match.home_win_pct / total) * 100);
+                  const a = isKO ? 100 - h : Math.round((next_match.away_win_pct / total) * 100);
+                  const d = isKO ? 0 : 100 - h - a;
+                  return (
+                    <div>
+                      <div style={{ height: "8px", borderRadius: "4px", overflow: "hidden", display: "flex", marginBottom: "6px" }}>
+                        <div style={{ width: `${h}%`, backgroundColor: "var(--accent-green)" }} />
+                        {!isKO && <div style={{ width: `${d}%`, backgroundColor: "var(--border)" }} />}
+                        <div style={{ width: `${a}%`, backgroundColor: "var(--accent-purple)" }} />
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
+                        <span style={{ color: "var(--accent-green)", fontWeight: 700 }}>{h}%</span>
+                        {!isKO && <span style={{ color: "var(--text-muted)" }}>Draw {d}%</span>}
+                        <span style={{ color: "var(--accent-purple)", fontWeight: 700 }}>{a}%</span>
+                      </div>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
-                      <span style={{ color: "var(--accent-green)", fontWeight: 700 }}>{next_match.home_win_pct}%</span>
-                      <span style={{ color: "var(--text-muted)" }}>Draw {next_match.draw_pct}%</span>
-                      <span style={{ color: "var(--accent-purple)", fontWeight: 700 }}>{next_match.away_win_pct}%</span>
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
                 {next_match.venue_city && (
                   <div style={{ marginTop: "10px", fontSize: "12px", color: "var(--text-muted)" }}>📍 {next_match.venue_city}</div>
                 )}
@@ -190,14 +197,28 @@ export default async function HomePage() {
   );
 }
 
-function TeamBadge({ name, logo }: { name: string; logo?: string }) {
+function TeamBadge({ name, logo, fifaRank }: { name: string; logo?: string; fifaRank?: number }) {
   return (
     <div style={{ flex: 1, textAlign: "center" }}>
-      {logo ? (
-        <img src={logo} alt={name} style={{ width: "48px", height: "48px", objectFit: "contain", margin: "0 auto 6px", display: "block" }} />
-      ) : (
-        <div style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: "var(--bg-hover)", margin: "0 auto 6px" }} />
-      )}
+      <div style={{ position: "relative", width: "48px", margin: "0 auto 6px" }}>
+        {logo ? (
+          <img src={logo} alt={name} style={{ width: "48px", height: "48px", objectFit: "contain", display: "block" }} />
+        ) : (
+          <div style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: "var(--bg-hover)" }} />
+        )}
+        {fifaRank != null && (
+          <span
+            title={`FIFA Rank #${fifaRank}`}
+            style={{
+              position: "absolute", bottom: "-4px", right: "-10px",
+              fontSize: "9px", fontWeight: 800, color: "var(--text-primary)",
+              backgroundColor: "var(--accent-gold)", padding: "2px 5px", borderRadius: "8px",
+              border: "2px solid var(--bg-card)", lineHeight: 1, whiteSpace: "nowrap",
+            }}>
+            FIFA #{fifaRank}
+          </span>
+        )}
+      </div>
       <div style={{ fontSize: "13px", fontWeight: 700 }}>{name}</div>
     </div>
   );

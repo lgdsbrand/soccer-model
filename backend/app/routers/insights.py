@@ -40,8 +40,8 @@ async def get_home_data():
     # Next match
     cur.execute("""
         SELECT f.id, f.date_utc, f.round, f.status, f.venue_name, f.venue_city,
-               ht.id as home_id, ht.name as home_name, ht.logo as home_logo,
-               at.id as away_id, at.name as away_name, at.logo as away_logo,
+               ht.id as home_id, ht.name as home_name, ht.logo as home_logo, ht.fifa_rank as home_fifa_rank,
+               at.id as away_id, at.name as away_name, at.logo as away_logo, at.fifa_rank as away_fifa_rank,
                p.home_win_pct, p.draw_pct, p.away_win_pct, p.btts_pct
         FROM fixtures f
         JOIN teams ht ON f.home_team_id = ht.id

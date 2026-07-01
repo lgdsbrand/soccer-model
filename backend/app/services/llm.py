@@ -71,21 +71,52 @@ def _gemini_complete(prompt: str, max_tokens: int = 800) -> Optional[str]:
         return None
 
 
+_REFUSAL_MARKERS = (
+    "i can't", "i cannot", "i can not", "i do not have", "i don't have",
+    "as an ai", "i'm sorry", "i am sorry", "i'm not aware", "i am not aware",
+    "i'm unable", "i am unable", "unable to verify", "unable to provide",
+    "unable to give", "unable to confirm", "my knowledge", "my data is cut off",
+    "yet to be determined", "not a real team", "hypothetical", "has not occurred",
+    "has not yet occurred", "future event", "not yet been determined",
+    "i don't know", "i do not know", "no information",
+)
+
+
+def _is_bad_response(text: Optional[str]) -> bool:
+    if not text:
+        return True
+    lowered = text.lower()
+    return any(marker in lowered for marker in _REFUSAL_MARKERS)
+
+
 async def get_style_of_play(team_name: str, coach: Optional[str] = None) -> str:
     """Generate or retrieve cached team style of play description."""
     cache_key = f"style:{team_name.lower().replace(' ', '_')}"
+    fallback = f"{team_name} plays a competitive style with organized defending and dangerous counter-attacks."
+
     cached = _get_cached(cache_key)
     if cached:
+        if _is_bad_response(cached):
+            _set_cached(cache_key, fallback)
+            return fallback
         return cached
 
-    coach_info = f"coached by {coach}" if coach else ""
-    prompt = f"""In 2-3 sentences, describe {team_name}'s typical style of play at the 2026 FIFA World Cup {coach_info}.
-Focus on: formation tendencies, pressing intensity, build-up style, attacking approach.
-Be specific and tactical. No fluff."""
+    coach_info = f", coached by {coach}," if coach else ""
+    prompt = f"""Describe {team_name}'s national football team{coach_info} typical style of play, based on their well-established tactical identity.
+Focus on: typical formation, pressing intensity, build-up style, attacking approach.
+Write exactly 2-3 factual, direct sentences. State it as fact — do not mention the World Cup, future events, predictions, or any uncertainty or knowledge limitations."""
 
-    content = _groq_complete(prompt, max_tokens=150) or f"{team_name} plays a competitive style with organized defending and dangerous counter-attacks."
-    _set_cached(cache_key, content)
-    return content
+    generated = _groq_complete(prompt, max_tokens=150)
+    if _is_bad_response(generated):
+        # Retry once with a stricter instruction before falling back
+        generated = _groq_complete(
+            prompt + "\n\nDo not include any disclaimers or caveats — output only the 2-3 sentences of tactical description.",
+            max_tokens=150,
+        )
+    if _is_bad_response(generated):
+        generated = fallback
+    _set_cached(cache_key, generated)
+    return generated
 
 
 async def get_predicted_lineup(

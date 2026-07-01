@@ -27,6 +27,11 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
         <div style={{ flex: 1 }}>
           <h1 style={{ fontSize: "24px", fontWeight: 800, margin: "0 0 4px" }}>{team.name}</h1>
           {team.group_letter && <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>Group {team.group_letter}</div>}
+          {team.fifa_rank != null && (
+            <div style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "4px" }}>
+              FIFA Rank: <strong style={{ color: "var(--accent-gold)" }}>#{team.fifa_rank}</strong>
+            </div>
+          )}
           {team.coach && <div style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "4px" }}>Coach: <strong>{team.coach}</strong></div>}
           {team.formation_default && <div style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "2px" }}>Formation: <strong>{team.formation_default}</strong></div>}
         </div>

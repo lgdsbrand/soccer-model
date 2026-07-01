@@ -13,6 +13,7 @@ export default function MatchCard({ fixture, compact }: Props) {
   const pred = fixture.prediction;
   const isLive = ["1H", "2H", "HT", "ET", "P"].includes(fixture.status);
   const isFinished = ["FT", "AET", "PEN"].includes(fixture.status);
+  const isKnockout = !fixture.round?.startsWith("Group Stage");
 
   return (
     <div className="card" style={{ overflow: "hidden" }}>
@@ -37,8 +38,11 @@ export default function MatchCard({ fixture, compact }: Props) {
         {/* Home */}
         <div style={{ flex: 1, textAlign: "center" }}>
           {fixture.home_logo && (
-            <img src={fixture.home_logo} alt={fixture.home_name}
-              style={{ width: "52px", height: "52px", objectFit: "contain", margin: "0 auto 8px" }} />
+            <div style={{ position: "relative", width: "52px", margin: "0 auto 8px" }}>
+              <img src={fixture.home_logo} alt={fixture.home_name}
+                style={{ width: "52px", height: "52px", objectFit: "contain" }} />
+              {fixture.home_fifa_rank != null && <FifaRankBadge rank={fixture.home_fifa_rank} />}
+            </div>
           )}
           <div style={{ fontWeight: 700, fontSize: "16px" }}>{fixture.home_name}</div>
           {fixture.home_group && (
@@ -64,8 +68,11 @@ export default function MatchCard({ fixture, compact }: Props) {
         {/* Away */}
         <div style={{ flex: 1, textAlign: "center" }}>
           {fixture.away_logo && (
-            <img src={fixture.away_logo} alt={fixture.away_name}
-              style={{ width: "52px", height: "52px", objectFit: "contain", margin: "0 auto 8px" }} />
+            <div style={{ position: "relative", width: "52px", margin: "0 auto 8px" }}>
+              <img src={fixture.away_logo} alt={fixture.away_name}
+                style={{ width: "52px", height: "52px", objectFit: "contain" }} />
+              {fixture.away_fifa_rank != null && <FifaRankBadge rank={fixture.away_fifa_rank} />}
+            </div>
           )}
           <div style={{ fontWeight: 700, fontSize: "16px" }}>{fixture.away_name}</div>
           {fixture.away_group && (
@@ -77,12 +84,14 @@ export default function MatchCard({ fixture, compact }: Props) {
       {/* Location + Weather */}
       {(fixture.venue_name || fixture.venue_city || fixture.weather) && (
         <div style={{ padding: "0 20px 12px", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-          <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
-            📍 {[fixture.venue_name, fixture.venue_city].filter(Boolean).join(", ")}
-          </span>
+          {(fixture.venue_name || fixture.venue_city) && (
+            <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
+              📍 {fixture.venue_name || fixture.venue_city}
+            </span>
+          )}
           {fixture.weather && (
             <>
-              <span style={{ color: "var(--border)" }}>·</span>
+              {(fixture.venue_name || fixture.venue_city) && <span style={{ color: "var(--border)" }}>·</span>}
               <img
                 src={`https://openweathermap.org/img/wn/${fixture.weather.icon}.png`}
                 alt={fixture.weather.description}
@@ -122,6 +131,7 @@ export default function MatchCard({ fixture, compact }: Props) {
                 draw={pred.draw_pct}
                 awayWin={pred.away_win_pct}
                 awayName={fixture.away_name}
+                knockout={isKnockout}
               />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "8px", marginTop: "16px" }}>
                 <StatChip label="BTTS" value={`${pred.btts_pct}%`} color="var(--accent-purple)" />
@@ -183,6 +193,16 @@ export default function MatchCard({ fixture, compact }: Props) {
             />
           ) : null}
 
+          {/* Style of Play */}
+          {(fixture.home_style_of_play || fixture.away_style_of_play) && (
+            <StyleOfPlaySection
+              homeStyle={fixture.home_style_of_play}
+              awayStyle={fixture.away_style_of_play}
+              homeName={fixture.home_name}
+              awayName={fixture.away_name}
+            />
+          )}
+
           {/* AI Analysis */}
           {fixture.ai_analysis && (
             <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)" }}>
@@ -195,11 +215,7 @@ export default function MatchCard({ fixture, compact }: Props) {
 
           {/* Recommended Play */}
           {fixture.recommended_play
-            ? <RecommendedPlaySection
-                play={fixture.recommended_play}
-                btts_pct={fixture.prediction?.btts_pct}
-                over_1_5_pct={fixture.prediction?.over_1_5_pct}
-              />
+            ? <RecommendedPlaySection play={fixture.recommended_play} />
             : (
               <div style={{ borderTop: "1px solid var(--border)", paddingTop: "16px", marginTop: "8px" }}>
                 <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>
@@ -218,26 +234,46 @@ export default function MatchCard({ fixture, compact }: Props) {
   );
 }
 
-function WinProbBar({ homeName, homeWin, draw, awayWin, awayName }: {
-  homeName: string; homeWin: number; draw: number; awayWin: number; awayName: string;
+function WinProbBar({ homeName, homeWin, draw, awayWin, awayName, knockout }: {
+  homeName: string; homeWin: number; draw: number; awayWin: number; awayName: string; knockout?: boolean;
 }) {
+  const total = knockout ? homeWin + awayWin : homeWin + draw + awayWin;
+  const h = Math.round((homeWin / total) * 100);
+  const a = knockout ? 100 - h : Math.round((awayWin / total) * 100);
+  const d = knockout ? 0 : 100 - h - a;
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "8px" }}>
-        <span style={{ color: "var(--accent-green)", fontWeight: 700 }}>{homeWin}%</span>
-        <span style={{ color: "var(--text-muted)" }}>Draw {draw}%</span>
-        <span style={{ color: "var(--accent-purple)", fontWeight: 700 }}>{awayWin}%</span>
+        <span style={{ color: "var(--accent-green)", fontWeight: 700 }}>{h}%</span>
+        {!knockout && <span style={{ color: "var(--text-muted)" }}>Draw {d}%</span>}
+        <span style={{ color: "var(--accent-purple)", fontWeight: 700 }}>{a}%</span>
       </div>
       <div style={{ height: "10px", borderRadius: "5px", overflow: "hidden", display: "flex" }}>
-        <div style={{ width: `${homeWin}%`, backgroundColor: "var(--accent-green)" }} />
-        <div style={{ width: `${draw}%`, backgroundColor: "var(--border)" }} />
-        <div style={{ width: `${awayWin}%`, backgroundColor: "var(--accent-purple)" }} />
+        <div style={{ width: `${h}%`, backgroundColor: "var(--accent-green)" }} />
+        {!knockout && <div style={{ width: `${d}%`, backgroundColor: "var(--border)" }} />}
+        <div style={{ width: `${a}%`, backgroundColor: "var(--accent-purple)" }} />
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
         <span>{homeName}</span>
         <span>{awayName}</span>
       </div>
     </div>
+  );
+}
+
+function FifaRankBadge({ rank }: { rank: number }) {
+  return (
+    <span
+      title={`FIFA Rank #${rank}`}
+      style={{
+        position: "absolute", bottom: "-4px", right: "-10px",
+        fontSize: "9px", fontWeight: 800, color: "var(--text-primary)",
+        backgroundColor: "var(--accent-gold)", padding: "2px 5px", borderRadius: "8px",
+        border: "2px solid var(--bg-card)", lineHeight: 1, whiteSpace: "nowrap",
+      }}>
+      FIFA #{rank}
+    </span>
   );
 }
 
@@ -393,6 +429,26 @@ function LineupColumn({ name, players, formation }: { name: string; players: Lin
   );
 }
 
+function StyleOfPlaySection({ homeStyle, awayStyle, homeName, awayName }: {
+  homeStyle?: string; awayStyle?: string; homeName: string; awayName: string;
+}) {
+  return (
+    <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)" }}>
+      <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px", fontWeight: 600 }}>STYLE OF PLAY</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+        {[{ name: homeName, style: homeStyle }, { name: awayName, style: awayStyle }].map(({ name, style }) => (
+          <div key={name}>
+            <div style={{ fontSize: "12px", fontWeight: 700, marginBottom: "8px", color: "var(--text-secondary)" }}>{name}</div>
+            {style
+              ? <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>{style}</p>
+              : <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0, fontStyle: "italic" }}>Not available</p>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function KeyPlayersSection({ homePlayers, awayPlayers, homeName, awayName }: {
   homePlayers: KeyPlayer[]; awayPlayers: KeyPlayer[]; homeName: string; awayName: string;
 }) {
@@ -485,19 +541,15 @@ function MatchStatsSection({ home, away, homeName, awayName }: {
   );
 }
 
-function RecommendedPlaySection({ play, btts_pct, over_1_5_pct }: {
+function RecommendedPlaySection({ play }: {
   play: import("@/lib/api").RecommendedPlay;
-  btts_pct?: number;
-  over_1_5_pct?: number;
 }) {
   const confidenceColor = { High: "var(--accent-green)", Medium: "var(--accent-gold)", Low: "#ff4757" }[play.confidence] || "var(--text-muted)";
-  const bttsLabel = btts_pct == null ? null : btts_pct >= 60 ? "Likely" : btts_pct >= 40 ? "Possible" : "Unlikely";
-  const bttsColor = btts_pct == null ? "var(--text-muted)" : btts_pct >= 60 ? "var(--accent-green)" : btts_pct >= 40 ? "var(--accent-gold)" : "#ff4757";
 
   return (
     <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)", backgroundColor: "rgba(124, 92, 252, 0.04)" }}>
       <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "10px", fontWeight: 600 }}>🎯 RECOMMENDED PLAY</div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", marginBottom: btts_pct != null ? "14px" : 0 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
         <div>
           <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "6px" }}>{play.primary_bet}</div>
           <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>{play.reasoning}</p>
@@ -512,32 +564,6 @@ function RecommendedPlaySection({ play, btts_pct, over_1_5_pct }: {
           <div style={{ fontSize: "14px", fontWeight: 700, color: confidenceColor }}>{play.confidence}</div>
         </div>
       </div>
-
-      {/* BTTS context */}
-      {btts_pct != null && (
-        <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "12px", display: "flex", gap: "12px" }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
-              <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.4px" }}>Both Teams to Score</span>
-              <span style={{ fontSize: "12px", fontWeight: 700, color: bttsColor }}>{bttsLabel} · {btts_pct}%</span>
-            </div>
-            <div style={{ height: "5px", borderRadius: "3px", backgroundColor: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${btts_pct}%`, backgroundColor: bttsColor, borderRadius: "3px", transition: "width 0.6s ease" }} />
-            </div>
-          </div>
-          {over_1_5_pct != null && (
-            <div style={{ flex: 1 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
-                <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.4px" }}>Over 1.5 Goals</span>
-                <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--accent-purple)" }}>{over_1_5_pct}%</span>
-              </div>
-              <div style={{ height: "5px", borderRadius: "3px", backgroundColor: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${over_1_5_pct}%`, backgroundColor: "var(--accent-purple)", borderRadius: "3px", transition: "width 0.6s ease" }} />
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

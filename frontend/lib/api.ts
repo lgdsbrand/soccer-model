@@ -35,6 +35,7 @@ export interface Team {
   coach?: string;
   style_of_play?: string;
   formation_default?: string;
+  fifa_rank?: number;
 }
 
 export interface Fixture {
@@ -59,6 +60,8 @@ export interface Fixture {
   over_1_5_pct?: number;
   home_group?: string;
   away_group?: string;
+  home_fifa_rank?: number;
+  away_fifa_rank?: number;
 }
 
 export interface MatchStat {
@@ -94,6 +97,8 @@ export interface FixtureDetail extends Fixture {
   away_coach?: string;
   home_formation?: string;
   away_formation?: string;
+  home_style_of_play?: string;
+  away_style_of_play?: string;
 }
 
 export interface Weather {

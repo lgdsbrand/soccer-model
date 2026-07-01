@@ -105,22 +105,12 @@ async def _sync_goals_on_startup():
 
 
 async def _initial_seed():
-    """Seed fixtures and standings on startup if DB is empty."""
-    from app.database import get_connection
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) as cnt FROM fixtures")
-    count = cur.fetchone()["cnt"]
-    conn.close()
-
-    if count == 0:
-        print("Seeding fixtures from football-data.org...")
-        n = await football_data_org.fetch_and_store_fixtures()
-        print(f"Seeded {n} fixtures")
-        await football_data_org.fetch_standings()
-        print("Seeded standings")
-    else:
-        print(f"DB already has {count} fixtures, skipping seed")
+    """Refresh fixtures and standings on every startup."""
+    print("Startup refresh: fetching fixtures from football-data.org...")
+    n = await football_data_org.fetch_and_store_fixtures()
+    print(f"Startup refresh: {n} fixtures synced")
+    await football_data_org.fetch_standings()
+    print("Startup refresh: standings synced")
 
 
 app = FastAPI(

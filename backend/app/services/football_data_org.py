@@ -123,11 +123,23 @@ async def fetch_and_store_fixtures() -> int:
         )
 
         cur.execute("""
-            INSERT OR REPLACE INTO fixtures
+            INSERT INTO fixtures
             (id, league_id, season, round, date_utc, status,
              home_team_id, away_team_id, home_score, away_score,
-             home_score_ht, away_score_ht, venue_name)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             home_score_ht, away_score_ht)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                league_id=excluded.league_id,
+                season=excluded.season,
+                round=excluded.round,
+                date_utc=excluded.date_utc,
+                status=excluded.status,
+                home_team_id=excluded.home_team_id,
+                away_team_id=excluded.away_team_id,
+                home_score=excluded.home_score,
+                away_score=excluded.away_score,
+                home_score_ht=excluded.home_score_ht,
+                away_score_ht=excluded.away_score_ht
         """, (
             m["id"],
             1,  # WC league_id
@@ -141,7 +153,6 @@ async def fetch_and_store_fixtures() -> int:
             ft.get("away"),
             ht.get("home"),
             ht.get("away"),
-            m.get("venue"),
         ))
         count += 1
 
