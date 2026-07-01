@@ -89,12 +89,9 @@ async def get_home_data():
     top_players = [dict(r) for r in cur.fetchall()]
 
     # Today's other matches (all today except the one already shown as next_match)
-    today_utc = datetime.datetime.now(datetime.timezone.utc).date()
-    today_start = datetime.datetime(
-        today_utc.year, today_utc.month, today_utc.day,
-        tzinfo=datetime.timezone.utc
-    ).timestamp()
-    today_end = today_start + 86400
+    # US Eastern Time reference — see app/utils.py
+    from app.utils import get_today_bounds_et
+    today_start, today_end = get_today_bounds_et()
     cur.execute("""
         SELECT f.id, f.date_utc, f.round, f.status, f.home_score, f.away_score,
                ht.name as home_name, ht.logo as home_logo,

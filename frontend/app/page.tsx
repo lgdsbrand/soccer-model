@@ -1,7 +1,8 @@
-import { api, formatDate, formatTime } from "@/lib/api";
+import { api } from "@/lib/api";
 import type { Fixture } from "@/lib/api";
 import Link from "next/link";
 import BracketView from "@/components/BracketView";
+import { LocalDate, LocalTime } from "@/components/LocalTime";
 
 export const revalidate = 60;
 
@@ -54,8 +55,8 @@ export default async function HomePage() {
                   <TeamBadge name={next_match.home_name} logo={next_match.home_logo} fifaRank={next_match.home_fifa_rank} />
                   <div style={{ flex: 1, textAlign: "center" }}>
                     <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "4px" }}>{next_match.round}</div>
-                    <div style={{ fontSize: "18px", fontWeight: 700, color: "var(--accent-green)" }}>{formatTime(next_match.date_utc)}</div>
-                    <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{formatDate(next_match.date_utc)}</div>
+                    <div style={{ fontSize: "18px", fontWeight: 700, color: "var(--accent-green)" }}><LocalTime ts={next_match.date_utc} /></div>
+                    <div style={{ fontSize: "12px", color: "var(--text-muted)" }}><LocalDate ts={next_match.date_utc} /></div>
                   </div>
                   <TeamBadge name={next_match.away_name} logo={next_match.away_logo} fifaRank={next_match.away_fifa_rank} />
                 </div>
@@ -255,7 +256,7 @@ function RecentMatchCard({ fixture }: { fixture: any }) {
         </div>
         {/* Date + Round */}
         <div style={{ fontSize: "10px", color: "var(--text-muted)", textAlign: "center" }}>
-          {formatDate(fixture.date_utc)}
+          <LocalDate ts={fixture.date_utc} />
           {fixture.round && <span style={{ marginLeft: "5px", opacity: 0.7 }}>· {fixture.round.replace("Group Stage - ", "")}</span>}
         </div>
       </div>
@@ -266,11 +267,6 @@ function RecentMatchCard({ fixture }: { fixture: any }) {
 function TodayMatchRow({ match }: { match: any }) {
   const isLive = ["1H", "2H", "HT"].includes(match.status);
   const isDone = match.status === "FT";
-  const scoreOrTime = isDone
-    ? `${match.home_score ?? 0}–${match.away_score ?? 0}`
-    : isLive
-    ? "LIVE"
-    : formatTime(match.date_utc);
   const scoreColor = isDone
     ? "var(--text-secondary)"
     : isLive
@@ -285,7 +281,7 @@ function TodayMatchRow({ match }: { match: any }) {
           {match.home_logo && <img src={match.home_logo} alt="" style={{ width: "14px", height: "14px", objectFit: "contain", flexShrink: 0 }} />}
         </div>
         <div style={{ fontSize: "11px", fontWeight: 700, minWidth: "38px", textAlign: "center", color: scoreColor, flexShrink: 0 }}>
-          {scoreOrTime}
+          {isDone ? `${match.home_score ?? 0}–${match.away_score ?? 0}` : isLive ? "LIVE" : <LocalTime ts={match.date_utc} />}
         </div>
         <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
           {match.away_logo && <img src={match.away_logo} alt="" style={{ width: "14px", height: "14px", objectFit: "contain", flexShrink: 0 }} />}

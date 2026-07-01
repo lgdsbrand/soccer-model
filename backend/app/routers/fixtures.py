@@ -46,11 +46,9 @@ async def get_fixtures(
 
 @router.get("/today", response_model=List[dict])
 async def get_today_fixtures():
-    """Get today's matches."""
-    import time
-    now = time.time()
-    day_start = now - (now % 86400)
-    day_end = day_start + 86400
+    """Get today's matches (US Eastern Time reference — see app/utils.py)."""
+    from app.utils import get_today_bounds_et
+    day_start, day_end = get_today_bounds_et()
 
     conn = get_connection()
     cur = conn.cursor()

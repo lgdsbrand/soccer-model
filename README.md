@@ -94,23 +94,6 @@ Two separate services, deployed independently:
 
 ---
 
-## Key Endpoints
-
-```
-GET /                        — Health check
-GET /fixtures/               — All WC2026 fixtures
-GET /fixtures/today          — Today's matches
-GET /fixtures/{id}           — Full match card (weather, lineups, prediction, AI analysis)
-GET /standings/groups        — Group standings
-GET /standings/bracket       — Knockout stage fixtures
-GET /teams/                  — All teams
-GET /teams/{id}               — Team detail + squad + style of play
-GET /predictions/advancement — Tournament advancement probabilities
-POST /predictions/run-monte-carlo — Trigger simulation (background)
-POST /predictions/refit-model    — Refit Dixon-Coles model (background)
-GET /insights/home           — Homepage aggregate data
-```
-
 ## Prediction Model
 
 **Dixon-Coles Poisson model** with exponential time decay (λ=0.0065):
