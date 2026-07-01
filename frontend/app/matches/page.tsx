@@ -12,6 +12,14 @@ function formatDayHeader(dateStr: string): string {
   });
 }
 
+// WC2026 is hosted across USA/Canada/Mexico for a US-based client — group
+// matches by their calendar date in US Eastern Time, not raw UTC, since a
+// UTC-based cutoff flips the day hours before US local midnight and puts
+// evening matches under the wrong date.
+function toEasternDateStr(ts: number): string {
+  return new Date(ts * 1000).toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+}
+
 export default async function MatchesPage() {
   let fixtures: Fixture[] = [];
   try {
@@ -22,12 +30,12 @@ export default async function MatchesPage() {
 
   const byDate: Record<string, Fixture[]> = {};
   for (const f of fixtures) {
-    const date = new Date(f.date_utc * 1000).toISOString().slice(0, 10);
+    const date = toEasternDateStr(f.date_utc);
     if (!byDate[date]) byDate[date] = [];
     byDate[date].push(f);
   }
   const dates = Object.keys(byDate).sort();
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = toEasternDateStr(Date.now() / 1000);
 
   return (
     <div>
