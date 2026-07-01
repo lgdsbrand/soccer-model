@@ -78,7 +78,7 @@ Two separate services, deployed independently:
 3. Paste the same 6 keys from step 1 into the environment variable fields it prompts for
 4. Deploy — copy the resulting URL (e.g. `https://your-service.onrender.com`) once it's live
 
-**Free tier note:** Render's free web services sleep after 15 minutes idle and take ~30-60s to wake on the next request.
+**Free tier note:** Render's free web services sleep after 15 minutes idle and take ~30-60s to wake on the next request. This also stops the hourly data-refresh scheduler from running while asleep, so a GitHub Actions workflow (`.github/workflows/keepalive.yml`) pings `/health` every 10 minutes to keep it awake — no setup needed, it runs automatically once this repo is on GitHub. If you ever change the backend's URL, update the URL in that workflow file to match.
 
 ### Frontend → Vercel
 
