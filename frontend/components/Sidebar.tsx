@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const nav = [
   { href: "/", label: "Dashboard", icon: "⚡" },
@@ -13,18 +14,53 @@ const nav = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+
+  // Close the mobile menu automatically whenever the route changes
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
 
   return (
-    <aside style={{
-      width: "256px",
-      position: "fixed",
-      top: 0, left: 0, bottom: 0,
-      backgroundColor: "var(--bg-sidebar)",
-      borderRight: "1px solid var(--border)",
-      display: "flex",
-      flexDirection: "column",
-      zIndex: 50,
-    }}>
+    <>
+      {/* Mobile menu toggle */}
+      <button
+        onClick={() => setOpen(v => !v)}
+        aria-label="Toggle menu"
+        className="md:hidden"
+        style={{
+          position: "fixed", top: "16px", left: "16px", zIndex: 60,
+          width: "40px", height: "40px", borderRadius: "8px",
+          backgroundColor: "var(--bg-sidebar)", border: "1px solid var(--border)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: "18px", color: "var(--text-primary)", cursor: "pointer",
+        }}
+      >
+        {open ? "✕" : "☰"}
+      </button>
+
+      {/* Mobile backdrop */}
+      {open && (
+        <div
+          onClick={() => setOpen(false)}
+          className="md:hidden"
+          style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 40 }}
+        />
+      )}
+
+      <aside
+        className={`${open ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
+        style={{
+          width: "256px",
+          position: "fixed",
+          top: 0, left: 0, bottom: 0,
+          backgroundColor: "var(--bg-sidebar)",
+          borderRight: "1px solid var(--border)",
+          display: "flex",
+          flexDirection: "column",
+          zIndex: 50,
+          transition: "transform 0.2s ease",
+        }}>
       {/* Logo */}
       <div style={{ padding: "20px 20px 16px", borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -68,6 +104,7 @@ export default function Sidebar() {
         })}
       </nav>
 
-    </aside>
+      </aside>
+    </>
   );
 }

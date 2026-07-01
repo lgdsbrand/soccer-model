@@ -27,7 +27,7 @@ export default async function HomePage() {
       </div>
 
       {/* Stats bar */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "24px" }}>
+      <div className="grid grid-cols-2 md:grid-cols-4" style={{ gap: "12px", marginBottom: "24px" }}>
         {[
           { label: "Matches Played", value: stats.matches_played, color: "var(--accent-green)" },
           { label: "Goals Scored", value: stats.total_goals, color: "var(--accent-gold)" },
@@ -41,7 +41,7 @@ export default async function HomePage() {
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "20px", marginBottom: "24px" }}>
+      <div className="grid grid-cols-1 md:grid-cols-4" style={{ gap: "20px", marginBottom: "24px" }}>
         {/* Next Match */}
         <div className="card" style={{ padding: "0", overflow: "hidden" }}>
           <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", backgroundColor: "rgba(0,208,132,0.05)" }}>
@@ -187,7 +187,7 @@ export default async function HomePage() {
           {recent_results.length === 0 ? (
             <div style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)", fontSize: "14px" }}>No completed matches yet</div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4" style={{ gap: "12px" }}>
               {recent_results.slice(0, 4).map(f => <RecentMatchCard key={f.id} fixture={f} />)}
             </div>
           )}
