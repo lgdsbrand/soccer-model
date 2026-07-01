@@ -13,7 +13,7 @@ export default async function HomePage() {
   ]);
   if (!data) return <ErrorState />;
 
-  const { next_match, today_matches, recent_results, winner_probabilities, top_players, stats } = data;
+  const { next_match, today_matches, recent_results, winner_probabilities, top_players } = data;
 
   return (
     <div>
@@ -27,19 +27,21 @@ export default async function HomePage() {
         </p>
       </div>
 
-      {/* Stats bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4" style={{ gap: "12px", marginBottom: "24px" }}>
-        {[
-          { label: "Matches Played", value: stats.matches_played, color: "var(--accent-green)" },
-          { label: "Goals Scored", value: stats.total_goals, color: "var(--accent-gold)" },
-          { label: "Goals/Match", value: stats.avg_goals_per_match, color: "var(--accent-purple)" },
-          { label: "Remaining", value: stats.matches_remaining, color: "var(--text-secondary)" },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="card" style={{ padding: "16px 20px" }}>
-            <div style={{ fontSize: "26px", fontWeight: 800, color }}>{value}</div>
-            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>{label}</div>
-          </div>
-        ))}
+      {/* Today's Schedule */}
+      <div className="card" style={{ padding: "0", overflow: "hidden", marginBottom: "24px" }}>
+        <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Today&apos;s Schedule</span>
+          <Link href="/matches" style={{ fontSize: "12px", color: "var(--accent-purple)", textDecoration: "none", fontWeight: 600 }}>Full Schedule →</Link>
+        </div>
+        <div style={{ padding: "16px" }}>
+          {!today_matches || today_matches.length === 0 ? (
+            <div style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)", fontSize: "14px" }}>No matches scheduled today</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4" style={{ gap: "12px" }}>
+              {today_matches.map((m: any) => <ScheduleMatchCard key={m.id} fixture={m} />)}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4" style={{ gap: "20px", marginBottom: "24px" }}>
@@ -89,14 +91,6 @@ export default async function HomePage() {
             </Link>
           ) : (
             <div style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)", fontSize: "14px" }}>No upcoming matches</div>
-          )}
-          {today_matches && today_matches.length > 0 && (
-            <div style={{ borderTop: "1px solid var(--border)", padding: "10px 14px" }}>
-              <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>
-                Today&apos;s Games
-              </div>
-              {today_matches.map((m: any) => <TodayMatchRow key={m.id} match={m} />)}
-            </div>
           )}
         </div>
 
@@ -264,28 +258,40 @@ function RecentMatchCard({ fixture }: { fixture: any }) {
   );
 }
 
-function TodayMatchRow({ match }: { match: any }) {
-  const isLive = ["1H", "2H", "HT"].includes(match.status);
-  const isDone = match.status === "FT";
-  const scoreColor = isDone
-    ? "var(--text-secondary)"
-    : isLive
-    ? "var(--accent-green)"
-    : "var(--text-muted)";
+function ScheduleMatchCard({ fixture }: { fixture: any }) {
+  const isLive = ["1H", "2H", "HT", "ET", "P"].includes(fixture.status);
+  const isDone = ["FT", "AET", "PEN"].includes(fixture.status);
 
   return (
-    <Link href={`/matches/${match.id}`} style={{ textDecoration: "none" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "6px", padding: "5px 6px", borderRadius: "5px", marginBottom: "2px", backgroundColor: "rgba(255,255,255,0.02)" }}>
-        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", justifyContent: "flex-end", minWidth: 0 }}>
-          <span style={{ fontSize: "11px", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{match.home_name}</span>
-          {match.home_logo && <img src={match.home_logo} alt="" style={{ width: "14px", height: "14px", objectFit: "contain", flexShrink: 0 }} />}
+    <Link href={`/matches/${fixture.id}`} style={{ textDecoration: "none" }}>
+      <div style={{
+        padding: "10px 12px",
+        borderRadius: "8px",
+        border: `1px solid ${isLive ? "rgba(0,208,132,0.35)" : "var(--border)"}`,
+        backgroundColor: isLive ? "rgba(0,208,132,0.05)" : "rgba(255,255,255,0.02)",
+        cursor: "pointer",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
+          <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "5px", justifyContent: "flex-end" }}>
+            <span style={{ fontSize: "12px", fontWeight: 700, textAlign: "right" }}>{fixture.home_name}</span>
+            {fixture.home_logo && <img src={fixture.home_logo} alt="" style={{ width: "18px", height: "18px", objectFit: "contain", flexShrink: 0 }} />}
+          </div>
+          <div style={{ minWidth: "48px", textAlign: "center", padding: "2px 6px", backgroundColor: isLive ? "rgba(0,208,132,0.15)" : "rgba(255,255,255,0.06)", borderRadius: "5px" }}>
+            {isDone || isLive ? (
+              <span style={{ fontSize: "13px", fontWeight: 800, letterSpacing: "-0.5px", color: isLive ? "var(--accent-green)" : "var(--text-primary)" }}>
+                {fixture.home_score ?? 0}–{fixture.away_score ?? 0}
+              </span>
+            ) : (
+              <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)" }}><LocalTime ts={fixture.date_utc} /></span>
+            )}
+          </div>
+          <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "5px" }}>
+            {fixture.away_logo && <img src={fixture.away_logo} alt="" style={{ width: "18px", height: "18px", objectFit: "contain", flexShrink: 0 }} />}
+            <span style={{ fontSize: "12px", fontWeight: 700 }}>{fixture.away_name}</span>
+          </div>
         </div>
-        <div style={{ fontSize: "11px", fontWeight: 700, minWidth: "38px", textAlign: "center", color: scoreColor, flexShrink: 0 }}>
-          {isDone ? `${match.home_score ?? 0}–${match.away_score ?? 0}` : isLive ? "LIVE" : <LocalTime ts={match.date_utc} />}
-        </div>
-        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
-          {match.away_logo && <img src={match.away_logo} alt="" style={{ width: "14px", height: "14px", objectFit: "contain", flexShrink: 0 }} />}
-          <span style={{ fontSize: "11px", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{match.away_name}</span>
+        <div style={{ fontSize: "10px", color: isLive ? "var(--accent-green)" : "var(--text-muted)", textAlign: "center", fontWeight: isLive ? 700 : 400 }}>
+          {isLive ? "● LIVE" : isDone ? "Full Time" : fixture.round?.replace("Group Stage - ", "")}
         </div>
       </div>
     </Link>
