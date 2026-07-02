@@ -88,7 +88,9 @@ async def get_home_data():
     """)
     top_players = [dict(r) for r in cur.fetchall()]
 
-    # Today's other matches (all today except the one already shown as next_match)
+    # Today's matches (full schedule — includes the fixture also shown as
+    # next_match, since Today's Schedule is now its own section rather than a
+    # mini-list embedded inside the Next Match card)
     # US Eastern Time reference — see app/utils.py
     from app.utils import get_today_bounds_et
     today_start, today_end = get_today_bounds_et()
@@ -102,8 +104,7 @@ async def get_home_data():
         WHERE f.date_utc >= ? AND f.date_utc < ?
         ORDER BY f.date_utc ASC
     """, (today_start, today_end))
-    next_match_id = next_match["id"] if next_match else None
-    today_matches = [dict(r) for r in cur.fetchall() if r["id"] != next_match_id]
+    today_matches = [dict(r) for r in cur.fetchall()]
 
     # Tournament stats
     cur.execute("SELECT COUNT(*) as total FROM fixtures WHERE status = 'FT'")
