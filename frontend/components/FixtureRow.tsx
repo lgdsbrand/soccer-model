@@ -11,18 +11,14 @@ export default function FixtureRow({ fixture }: { fixture: Fixture }) {
 
   return (
     <Link href={`/matches/${fixture.id}`} style={{ textDecoration: "none" }}>
-      <div style={{
+      <div className="fixture-row" style={{
         display: "flex", alignItems: "center", gap: "12px",
         padding: "12px 16px", borderRadius: "8px",
         border: "1px solid var(--border)",
         backgroundColor: "var(--bg-card)",
         marginBottom: "6px",
-        transition: "border-color 0.15s",
         cursor: "pointer",
-      }}
-        onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--accent-purple)")}
-        onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border)")}
-      >
+      }}>
         {/* Status */}
         <div style={{ minWidth: "90px", flexShrink: 0, textAlign: "center" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}>

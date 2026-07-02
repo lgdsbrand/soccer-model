@@ -275,19 +275,12 @@ function BracketMatch({ fixture, isFinal }: { fixture: Fixture; isFinal?: boolea
   return (
     <Link href={`/matches/${fixture.id}`} style={{ textDecoration: "none", display: "block", margin: "0 3px" }}>
       <div
+        className="bracket-match"
         style={{
           border: `1px solid ${isFinal ? GOLD : CARD_BORDER}`,
           borderRadius: "8px", overflow: "hidden",
           backgroundColor: isFinal ? "rgba(255,180,0,0.06)" : CARD_BG,
-          cursor: "pointer", transition: "border-color 0.15s, box-shadow 0.15s",
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.borderColor = "rgba(124,92,252,0.7)";
-          e.currentTarget.style.boxShadow = "0 0 0 1px rgba(124,92,252,0.3)";
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.borderColor = isFinal ? GOLD : CARD_BORDER;
-          e.currentTarget.style.boxShadow = "none";
+          cursor: "pointer",
         }}
       >
         <div style={{ height: CARD_H, display: "flex", flexDirection: "column" }}>

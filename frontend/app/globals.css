@@ -36,11 +36,25 @@ body {
   border-radius: 12px;
 }
 
-.team-card {
-  transition: border-color 0.15s;
+.team-card,
+.fixture-row,
+.bracket-match {
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-.team-card:hover {
-  border-color: var(--accent-purple);
+/* hover:hover excludes touch-only devices — plain :hover here would make iOS
+   Safari treat the first tap as triggering hover instead of navigating,
+   requiring a second tap to actually follow the link */
+@media (hover: hover) {
+  .team-card:hover {
+    border-color: var(--accent-purple);
+  }
+  .fixture-row:hover {
+    border-color: var(--accent-purple);
+  }
+  .bracket-match:hover {
+    border-color: rgba(124, 92, 252, 0.7);
+    box-shadow: 0 0 0 1px rgba(124, 92, 252, 0.3);
+  }
 }
 
 .stat-bar {
