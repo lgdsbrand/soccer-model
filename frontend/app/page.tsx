@@ -232,20 +232,20 @@ function RecentMatchCard({ fixture }: { fixture: any }) {
         {/* Teams + Score */}
         <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
           {/* Home */}
-          <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "5px", justifyContent: "flex-end" }}>
-            <span style={{ fontSize: "12px", fontWeight: 700, textAlign: "right" }}>{fixture.home_name}</span>
+          <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "5px", justifyContent: "flex-end" }}>
+            <span style={{ fontSize: "12px", fontWeight: 700, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fixture.home_name}</span>
             {fixture.home_logo && <img src={fixture.home_logo} alt="" style={{ width: "18px", height: "18px", objectFit: "contain", flexShrink: 0 }} />}
           </div>
           {/* Score */}
-          <div style={{ minWidth: "44px", textAlign: "center", padding: "2px 6px", backgroundColor: "rgba(255,255,255,0.06)", borderRadius: "5px" }}>
+          <div style={{ minWidth: "44px", textAlign: "center", padding: "2px 6px", backgroundColor: "rgba(255,255,255,0.06)", borderRadius: "5px", flexShrink: 0 }}>
             <span style={{ fontSize: "13px", fontWeight: 800, letterSpacing: "-0.5px" }}>
               {fixture.home_score ?? 0}–{fixture.away_score ?? 0}
             </span>
           </div>
           {/* Away */}
-          <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "5px" }}>
+          <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "5px" }}>
             {fixture.away_logo && <img src={fixture.away_logo} alt="" style={{ width: "18px", height: "18px", objectFit: "contain", flexShrink: 0 }} />}
-            <span style={{ fontSize: "12px", fontWeight: 700 }}>{fixture.away_name}</span>
+            <span style={{ fontSize: "12px", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fixture.away_name}</span>
           </div>
         </div>
         {/* Date + Round */}
@@ -272,11 +272,11 @@ function ScheduleMatchCard({ fixture }: { fixture: any }) {
         cursor: "pointer",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
-          <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "5px", justifyContent: "flex-end" }}>
-            <span style={{ fontSize: "12px", fontWeight: 700, textAlign: "right" }}>{fixture.home_name}</span>
+          <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "5px", justifyContent: "flex-end" }}>
+            <span style={{ fontSize: "12px", fontWeight: 700, textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fixture.home_name}</span>
             {fixture.home_logo && <img src={fixture.home_logo} alt="" style={{ width: "18px", height: "18px", objectFit: "contain", flexShrink: 0 }} />}
           </div>
-          <div style={{ minWidth: "48px", textAlign: "center", padding: "2px 6px", backgroundColor: isLive ? "rgba(0,208,132,0.15)" : "rgba(255,255,255,0.06)", borderRadius: "5px" }}>
+          <div style={{ minWidth: "48px", textAlign: "center", padding: "2px 6px", backgroundColor: isLive ? "rgba(0,208,132,0.15)" : "rgba(255,255,255,0.06)", borderRadius: "5px", flexShrink: 0 }}>
             {isDone || isLive ? (
               <span style={{ fontSize: "13px", fontWeight: 800, letterSpacing: "-0.5px", color: isLive ? "var(--accent-green)" : "var(--text-primary)" }}>
                 {fixture.home_score ?? 0}–{fixture.away_score ?? 0}
@@ -285,9 +285,9 @@ function ScheduleMatchCard({ fixture }: { fixture: any }) {
               <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)" }}><LocalTime ts={fixture.date_utc} /></span>
             )}
           </div>
-          <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "5px" }}>
+          <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "5px" }}>
             {fixture.away_logo && <img src={fixture.away_logo} alt="" style={{ width: "18px", height: "18px", objectFit: "contain", flexShrink: 0 }} />}
-            <span style={{ fontSize: "12px", fontWeight: 700 }}>{fixture.away_name}</span>
+            <span style={{ fontSize: "12px", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fixture.away_name}</span>
           </div>
         </div>
         <div style={{ fontSize: "10px", color: isLive ? "var(--accent-green)" : "var(--text-muted)", textAlign: "center", fontWeight: isLive ? 700 : 400 }}>
