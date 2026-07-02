@@ -24,7 +24,7 @@ export default function FixtureRow({ fixture }: { fixture: Fixture }) {
         onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border)")}
       >
         {/* Status */}
-        <div style={{ minWidth: "90px", textAlign: "center" }}>
+        <div style={{ minWidth: "90px", flexShrink: 0, textAlign: "center" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}>
             {isLive && <div className="live-dot" style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "var(--accent-green)" }} />}
             <span style={{ fontSize: "11px", color: status.color, fontWeight: 600 }}>{status.label}</span>
@@ -35,13 +35,13 @@ export default function FixtureRow({ fixture }: { fixture: Fixture }) {
         </div>
 
         {/* Home */}
-        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "8px", justifyContent: "flex-end" }}>
-          <span style={{ fontSize: "14px", fontWeight: 600 }}>{fixture.home_name}</span>
-          {fixture.home_logo && <img src={fixture.home_logo} alt="" style={{ width: "24px", height: "24px", objectFit: "contain" }} />}
+        <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "8px", justifyContent: "flex-end" }}>
+          <span style={{ fontSize: "14px", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fixture.home_name}</span>
+          {fixture.home_logo && <img src={fixture.home_logo} alt="" style={{ width: "24px", height: "24px", objectFit: "contain", flexShrink: 0 }} />}
         </div>
 
         {/* Score */}
-        <div style={{ textAlign: "center", minWidth: "60px" }}>
+        <div style={{ textAlign: "center", minWidth: "60px", flexShrink: 0 }}>
           {(isFinished || isLive) ? (
             <span style={{ fontSize: "18px", fontWeight: 800, letterSpacing: "-0.5px" }}>
               {fixture.home_score ?? 0} – {fixture.away_score ?? 0}
@@ -52,14 +52,14 @@ export default function FixtureRow({ fixture }: { fixture: Fixture }) {
         </div>
 
         {/* Away */}
-        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "8px" }}>
-          {fixture.away_logo && <img src={fixture.away_logo} alt="" style={{ width: "24px", height: "24px", objectFit: "contain" }} />}
-          <span style={{ fontSize: "14px", fontWeight: 600 }}>{fixture.away_name}</span>
+        <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+          {fixture.away_logo && <img src={fixture.away_logo} alt="" style={{ width: "24px", height: "24px", objectFit: "contain", flexShrink: 0 }} />}
+          <span style={{ fontSize: "14px", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fixture.away_name}</span>
         </div>
 
         {/* Win % */}
         {fixture.home_win_pct != null && (
-          <div style={{ textAlign: "right", minWidth: "80px" }}>
+          <div style={{ textAlign: "right", minWidth: "80px", flexShrink: 0 }}>
             <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>Prob</div>
             <div style={{ fontSize: "12px", fontWeight: 600 }}>
               <span style={{ color: "var(--accent-green)" }}>{fixture.home_win_pct}%</span>
