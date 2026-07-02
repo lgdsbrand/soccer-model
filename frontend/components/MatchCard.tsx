@@ -36,7 +36,7 @@ export default function MatchCard({ fixture, compact }: Props) {
       {/* Teams + Score */}
       <div style={{ padding: "20px", display: "flex", alignItems: "center", gap: "16px" }}>
         {/* Home */}
-        <div style={{ flex: 1, textAlign: "center" }}>
+        <div style={{ flex: 1, minWidth: 0, textAlign: "center" }}>
           {fixture.home_logo && (
             <div style={{ position: "relative", width: "52px", margin: "0 auto 8px" }}>
               <img src={fixture.home_logo} alt={fixture.home_name}
@@ -44,7 +44,7 @@ export default function MatchCard({ fixture, compact }: Props) {
               {fixture.home_fifa_rank != null && <FifaRankBadge rank={fixture.home_fifa_rank} />}
             </div>
           )}
-          <div style={{ fontWeight: 700, fontSize: "16px" }}>{fixture.home_name}</div>
+          <div style={{ fontWeight: 700, fontSize: "16px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fixture.home_name}</div>
           {fixture.home_group && (
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>Group {fixture.home_group}</div>
           )}
@@ -66,7 +66,7 @@ export default function MatchCard({ fixture, compact }: Props) {
         </div>
 
         {/* Away */}
-        <div style={{ flex: 1, textAlign: "center" }}>
+        <div style={{ flex: 1, minWidth: 0, textAlign: "center" }}>
           {fixture.away_logo && (
             <div style={{ position: "relative", width: "52px", margin: "0 auto 8px" }}>
               <img src={fixture.away_logo} alt={fixture.away_name}
@@ -74,7 +74,7 @@ export default function MatchCard({ fixture, compact }: Props) {
               {fixture.away_fifa_rank != null && <FifaRankBadge rank={fixture.away_fifa_rank} />}
             </div>
           )}
-          <div style={{ fontWeight: 700, fontSize: "16px" }}>{fixture.away_name}</div>
+          <div style={{ fontWeight: 700, fontSize: "16px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fixture.away_name}</div>
           {fixture.away_group && (
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>Group {fixture.away_group}</div>
           )}

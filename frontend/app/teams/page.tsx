@@ -39,7 +39,7 @@ export default async function TeamsPage() {
                   ) : (
                     <div style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: "var(--bg-hover)", margin: "0 auto 10px" }} />
                   )}
-                  <div style={{ fontSize: "13px", fontWeight: 700 }}>{team.name}</div>
+                  <div style={{ fontSize: "13px", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{team.name}</div>
                   {team.fifa_rank != null && (
                     <div style={{ fontSize: "11px", color: "var(--accent-gold)", marginTop: "2px" }}>
                       FIFA Rank #{team.fifa_rank}
