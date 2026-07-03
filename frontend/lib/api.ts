@@ -103,6 +103,8 @@ export interface FixtureDetail extends Fixture {
   away_stats_avg?: TeamStats;
   home_match_stats?: MatchStat;
   away_match_stats?: MatchStat;
+  home_team_stats?: TeamSeasonStats;
+  away_team_stats?: TeamSeasonStats;
   home_key_players?: KeyPlayer[];
   away_key_players?: KeyPlayer[];
   prediction?: Prediction;
@@ -185,6 +187,12 @@ export interface TeamStats {
   corners?: number;
   fouls?: number;
   yellow_cards?: number;
+}
+
+export interface TeamSeasonStats {
+  corners?: number;
+  shots?: number;
+  fouls?: number;
 }
 
 export interface Prediction {

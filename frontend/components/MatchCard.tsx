@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import type { Fixture, FixtureDetail, Prediction, TeamStats, KeyPlayer, LineupEntry, MatchStat } from "@/lib/api";
+import type { Fixture, FixtureDetail, Prediction, TeamSeasonStats, KeyPlayer, LineupEntry, MatchStat } from "@/lib/api";
 import { formatDate, formatTime, getStatusLabel } from "@/lib/api";
 
 interface Props {
@@ -178,12 +178,17 @@ export default function MatchCard({ fixture, compact }: Props) {
               homeName={fixture.home_name}
               awayName={fixture.away_name}
             />
+          ) : (fixture.home_team_stats || fixture.away_team_stats) ? (
+            <SeasonStatsSection
+              home={fixture.home_team_stats}
+              away={fixture.away_team_stats}
+              homeName={fixture.home_name}
+              awayName={fixture.away_name}
+            />
           ) : isFinished ? (
             <div style={{ padding: "14px 20px", borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", gap: "8px" }}>
               <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>📊</span>
-              <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                Detailed match stats available from <strong style={{ color: "var(--text-secondary)" }}>June 28, 2026</strong> onward
-              </span>
+              <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Detailed match stats not yet available for this match</span>
             </div>
           ) : null}
 
@@ -417,21 +422,20 @@ function AttackRatingSection({
   );
 }
 
-function StatComparison({ home, away, homeName, awayName }: { home?: TeamStats; away?: TeamStats; homeName: string; awayName: string }) {
+function SeasonStatsSection({ home, away, homeName, awayName }: { home?: TeamSeasonStats; away?: TeamSeasonStats; homeName: string; awayName: string }) {
   if (!home && !away) return null;
 
   const stats = [
-    { label: "Avg Shots", homeVal: home?.shots_total, awayVal: away?.shots_total },
-    { label: "Shots on Target", homeVal: home?.shots_on_target, awayVal: away?.shots_on_target },
-    { label: "Avg Corners", homeVal: home?.corners, awayVal: away?.corners },
-    { label: "Avg Fouls", homeVal: home?.fouls, awayVal: away?.fouls },
+    { label: "Shots", homeVal: home?.shots, awayVal: away?.shots },
+    { label: "Corners", homeVal: home?.corners, awayVal: away?.corners },
+    { label: "Fouls", homeVal: home?.fouls, awayVal: away?.fouls },
   ].filter(s => s.homeVal != null || s.awayVal != null);
 
   if (!stats.length) return null;
 
   return (
     <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)" }}>
-      <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px", fontWeight: 600 }}>AVG LAST 5 GAMES</div>
+      <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px", fontWeight: 600 }}>WORLD CUP 2026 AVERAGES</div>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
         <span style={{ fontSize: "12px", fontWeight: 600 }}>{homeName}</span>
         <span style={{ fontSize: "12px", fontWeight: 600 }}>{awayName}</span>

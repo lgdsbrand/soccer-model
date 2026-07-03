@@ -215,6 +215,14 @@ async def get_fixture_detail(fixture_id: int, background_tasks: BackgroundTasks)
     except Exception:
         fixture["away_stats_avg"] = {}
 
+    # Season-to-date corners/shots/fouls (Tavily-sourced, refreshed when a
+    # team's match finishes — see football_data_org.fetch_and_store_fixtures).
+    # Coarser than home_match_stats/home_stats_avg above (single season
+    # aggregate, not per-match or last-5), used as a fallback when those
+    # aren't available.
+    fixture["home_team_stats"] = _get_team_season_stats(fixture["home_name"])
+    fixture["away_team_stats"] = _get_team_season_stats(fixture["away_name"])
+
     # Prediction
     fixture["prediction"] = None
     try:
@@ -282,6 +290,21 @@ async def get_fixture_detail(fixture_id: int, background_tasks: BackgroundTasks)
         fixture["away_style_of_play"] = None
 
     return fixture
+
+
+def _get_team_season_stats(team_name: str) -> Optional[dict]:
+    """Season-to-date corners/shots/fouls for one team, if Tavily has fetched them yet."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT corners, shots, fouls FROM team_season_stats WHERE team_name = ?",
+        (team_name,),
+    )
+    row = cur.fetchone()
+    conn.close()
+    if not row or (row["corners"] is None and row["shots"] is None and row["fouls"] is None):
+        return None
+    return dict(row)
 
 
 async def _get_team_avg_stats(team_id: int) -> dict:
