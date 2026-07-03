@@ -18,13 +18,23 @@ export default async function HomePage() {
   return (
     <div>
       {/* Header */}
-      <div style={{ marginBottom: "24px" }}>
-        <h1 style={{ fontSize: "24px", fontWeight: 800, margin: 0 }}>
-          🏆 FIFA World Cup 2026
-        </h1>
-        <p style={{ fontSize: "14px", color: "var(--text-muted)", marginTop: "4px" }}>
-          Hosted by USA · Canada · Mexico
-        </p>
+      <div className="hero-banner">
+        <div className="hero-banner-content">
+          <div>
+            <div style={{ fontSize: "13px", fontWeight: 800, letterSpacing: "2px", color: "var(--text-primary)", textTransform: "uppercase" }}>
+              FIFA World Cup
+            </div>
+            <div style={{ fontSize: "clamp(32px, 6vw, 56px)", fontWeight: 900, color: "var(--accent-gold)", lineHeight: 1.05, margin: "2px 0" }}>
+              2026
+            </div>
+            <div style={{ fontSize: "12px", fontWeight: 600, letterSpacing: "1.5px", color: "var(--text-secondary)", textTransform: "uppercase" }}>
+              USA · Canada · Mexico
+            </div>
+          </div>
+          <div className="hero-trophy-wrap">
+            <div className="hero-trophy">🏆</div>
+          </div>
+        </div>
       </div>
 
       {/* Today's Schedule */}
