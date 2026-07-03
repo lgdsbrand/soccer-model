@@ -194,6 +194,15 @@ def init_db():
             fetched_at REAL DEFAULT (unixepoch())
         );
 
+        CREATE TABLE IF NOT EXISTS team_season_stats (
+            team_name TEXT PRIMARY KEY,
+            corners INTEGER,
+            shots INTEGER,
+            fouls INTEGER,
+            source TEXT DEFAULT 'fifa.com',
+            updated_at REAL DEFAULT (unixepoch())
+        );
+
         CREATE TABLE IF NOT EXISTS tavily_match_probs (
             home_team TEXT NOT NULL,
             away_team TEXT NOT NULL,

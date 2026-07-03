@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     google_genai_key: str = ""
     app_env: str = "development"
     frontend_url: str = "http://localhost:3000"
+    scraper_ingest_key: str = ""  # shared secret for the GitHub Actions team-stats scraper
 
     # API-Football constants
     api_football_base: str = "https://v3.football.api-sports.io"
