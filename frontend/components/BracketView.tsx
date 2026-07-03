@@ -111,27 +111,48 @@ const SEMI_ROUNDS = ["Round of 32", "Round of 16", "Quarter-finals", "Semi-final
 // naive "split in half, pair by index" — which silently assumes fixture order
 // reflects real bracket adjacency, and produces visually wrong connector lines
 // whenever it doesn't (e.g. a knockout draw isn't simply date-ordered pairs).
-// Falls back to original order for legs that are still fully TBD on both sides,
-// since there's no lineage to trace yet and any order is equally provisional.
+//
+// Two passes, not one: a later match with no confirmed teams yet (both TBD)
+// has no real lineage to trace, so it falls back to "claim whatever's still
+// unused." Doing that in a single left-to-right pass let an earlier TBD slot
+// greedily claim a fixture that a *later*, already-determined match actually
+// needed — e.g. a TBD Round-of-16 slot grabbing Belgium's and the USA's real
+// Round-of-32 matches before the real "USA vs Belgium" match (further down
+// the list) got a chance to claim them, leaving it wired to the wrong parent
+// fixtures. Resolving all real (team-ID-known) claims first in their own
+// pass, before any TBD fallback runs, means a real match's true lineage can
+// never be stolen by a placeholder — only genuinely-undetermined slots are
+// left to divide up whatever's left over, in original order.
 function reorderByLineage(laterOrdered: Fixture[], earlierMatches: Fixture[]): Fixture[] {
   const used = new Set<number>();
-  const result: Fixture[] = [];
-  for (const laterMatch of laterOrdered) {
-    for (const teamId of [laterMatch.home_team_id, laterMatch.away_team_id]) {
-      let parent = teamId != null
-        ? earlierMatches.find(m => !used.has(m.id) && (m.home_team_id === teamId || m.away_team_id === teamId))
-        : undefined;
-      if (!parent) {
-        parent = earlierMatches.find(m => !used.has(m.id));
-      }
+  const claims: (Fixture | null)[][] = laterOrdered.map(() => [null, null]);
+
+  laterOrdered.forEach((laterMatch, idx) => {
+    [laterMatch.home_team_id, laterMatch.away_team_id].forEach((teamId, slot) => {
+      if (teamId == null) return;
+      const parent = earlierMatches.find(m => !used.has(m.id) && (m.home_team_id === teamId || m.away_team_id === teamId));
       if (parent) {
         used.add(parent.id);
-        result.push(parent);
+        claims[idx][slot] = parent;
+      }
+    });
+  });
+
+  const leftovers = earlierMatches.filter(m => !used.has(m.id));
+  let li = 0;
+  claims.forEach(pair => {
+    for (let slot = 0; slot < 2; slot++) {
+      if (pair[slot] == null && li < leftovers.length) {
+        pair[slot] = leftovers[li++];
       }
     }
-  }
+  });
+
+  const result: Fixture[] = [];
+  claims.forEach(pair => pair.forEach(m => { if (m) result.push(m); }));
+  const placed = new Set(result.map(m => m.id));
   for (const m of earlierMatches) {
-    if (!used.has(m.id)) result.push(m);
+    if (!placed.has(m.id)) result.push(m);
   }
   return result;
 }
