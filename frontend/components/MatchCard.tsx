@@ -157,6 +157,8 @@ export default function MatchCard({ fixture, compact }: Props) {
               awayGoalsAllowed={fixture.away_goals_allowed_per_game}
               homeXga={fixture.home_xga_rating}
               awayXga={fixture.away_xga_rating}
+              homeTeamStats={fixture.home_team_stats}
+              awayTeamStats={fixture.away_team_stats}
             />
           )}
 
@@ -175,13 +177,6 @@ export default function MatchCard({ fixture, compact }: Props) {
             <MatchStatsSection
               home={fixture.home_match_stats}
               away={fixture.away_match_stats}
-              homeName={fixture.home_name}
-              awayName={fixture.away_name}
-            />
-          ) : (fixture.home_team_stats || fixture.away_team_stats) ? (
-            <SeasonStatsSection
-              home={fixture.home_team_stats}
-              away={fixture.away_team_stats}
               homeName={fixture.home_name}
               awayName={fixture.away_name}
             />
@@ -364,11 +359,13 @@ function AttackRatingSection({
   homeName, awayName, homeAttack, awayAttack,
   homeGoals, awayGoals, homeXg, awayXg,
   homeGoalsAllowed, awayGoalsAllowed, homeXga, awayXga,
+  homeTeamStats, awayTeamStats,
 }: {
   homeName: string; awayName: string;
   homeAttack?: number; awayAttack?: number;
   homeGoals?: number; awayGoals?: number; homeXg?: number; awayXg?: number;
   homeGoalsAllowed?: number; awayGoalsAllowed?: number; homeXga?: number; awayXga?: number;
+  homeTeamStats?: TeamSeasonStats; awayTeamStats?: TeamSeasonStats;
 }) {
   const fmt = (v?: number) => v != null ? v.toFixed(2) : "—";
 
@@ -386,6 +383,21 @@ function AttackRatingSection({
       label: "Goals Allowed / xGA", homeVal: homeGoalsAllowed, awayVal: awayGoalsAllowed,
       max: Math.max(homeGoalsAllowed || 0, awayGoalsAllowed || 0, 1),
       homeText: `${fmt(homeGoalsAllowed)} / ${fmt(homeXga)}`, awayText: `${fmt(awayGoalsAllowed)} / ${fmt(awayXga)}`,
+    },
+    {
+      label: "Corners per Game", homeVal: homeTeamStats?.corners, awayVal: awayTeamStats?.corners,
+      max: Math.max(homeTeamStats?.corners || 0, awayTeamStats?.corners || 0, 1),
+      homeText: homeTeamStats?.corners ?? "—", awayText: awayTeamStats?.corners ?? "—",
+    },
+    {
+      label: "Shots on Target per Game", homeVal: homeTeamStats?.shots, awayVal: awayTeamStats?.shots,
+      max: Math.max(homeTeamStats?.shots || 0, awayTeamStats?.shots || 0, 1),
+      homeText: homeTeamStats?.shots ?? "—", awayText: awayTeamStats?.shots ?? "—",
+    },
+    {
+      label: "Fouls per Game", homeVal: homeTeamStats?.fouls, awayVal: awayTeamStats?.fouls,
+      max: Math.max(homeTeamStats?.fouls || 0, awayTeamStats?.fouls || 0, 1),
+      homeText: homeTeamStats?.fouls ?? "—", awayText: awayTeamStats?.fouls ?? "—",
     },
   ].filter(r => r.homeVal != null || r.awayVal != null);
 
@@ -418,48 +430,6 @@ function AttackRatingSection({
       <div style={{ marginTop: "10px", fontSize: "11px", color: "var(--text-muted)", textAlign: "center" }}>
         Attack Strength on a 0-100 scale
       </div>
-    </div>
-  );
-}
-
-function SeasonStatsSection({ home, away, homeName, awayName }: { home?: TeamSeasonStats; away?: TeamSeasonStats; homeName: string; awayName: string }) {
-  if (!home && !away) return null;
-
-  const stats = [
-    { label: "Shots", homeVal: home?.shots, awayVal: away?.shots },
-    { label: "Corners", homeVal: home?.corners, awayVal: away?.corners },
-    { label: "Fouls", homeVal: home?.fouls, awayVal: away?.fouls },
-  ].filter(s => s.homeVal != null || s.awayVal != null);
-
-  if (!stats.length) return null;
-
-  return (
-    <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)" }}>
-      <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px", fontWeight: 600 }}>WORLD CUP 2026 AVERAGES</div>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-        <span style={{ fontSize: "12px", fontWeight: 600 }}>{homeName}</span>
-        <span style={{ fontSize: "12px", fontWeight: 600 }}>{awayName}</span>
-      </div>
-      {stats.map(({ label, homeVal, awayVal }) => {
-        const max = Math.max(homeVal || 0, awayVal || 0, 1);
-        return (
-          <div key={label} style={{ marginBottom: "10px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-              <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--accent-green)" }}>{homeVal ?? "—"}</span>
-              <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{label}</span>
-              <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--accent-purple)" }}>{awayVal ?? "—"}</span>
-            </div>
-            <div style={{ height: "6px", borderRadius: "3px", overflow: "hidden", display: "flex", gap: "4px" }}>
-              <div style={{ flex: 1, display: "flex", justifyContent: "flex-end" }}>
-                <div style={{ width: `${((homeVal || 0) / max) * 100}%`, backgroundColor: "var(--accent-green)", borderRadius: "3px" }} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ width: `${((awayVal || 0) / max) * 100}%`, backgroundColor: "var(--accent-purple)", borderRadius: "3px" }} />
-              </div>
-            </div>
-          </div>
-        );
-      })}
     </div>
   );
 }

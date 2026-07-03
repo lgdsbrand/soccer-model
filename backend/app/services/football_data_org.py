@@ -90,11 +90,11 @@ async def fetch_and_store_fixtures() -> int:
     count = 0
 
     # Snapshot prior statuses so we can detect FT transitions below — team
-    # stats only get refreshed for teams whose match just finished, not the
-    # whole tournament every hour (keeps Tavily/Groq usage down).
+    # stats only get refreshed when a match actually just finished, not on
+    # every hourly poll regardless of whether anything changed.
     cur.execute("SELECT id, status FROM fixtures")
     prior_status = {row["id"]: row["status"] for row in cur.fetchall()}
-    newly_finished_teams: set = set()
+    any_match_finished = False
 
     for m in data.get("matches", []):
         home = m["homeTeam"]
@@ -104,10 +104,7 @@ async def fetch_and_store_fixtures() -> int:
         ht = score.get("halfTime", {})
         new_status = _map_status(m.get("status", "SCHEDULED"))
         if prior_status.get(m["id"]) != "FT" and new_status == "FT":
-            for team in (home, away):
-                name = team.get("name") or team.get("shortName")
-                if name:
-                    newly_finished_teams.add(name)
+            any_match_finished = True
 
         # Upsert teams
         for team in [home, away]:
@@ -172,13 +169,12 @@ async def fetch_and_store_fixtures() -> int:
     conn.commit()
     conn.close()
 
-    if newly_finished_teams:
-        from app.services.tavily_team_stats import fetch_team_stats
-        for team_name in newly_finished_teams:
-            try:
-                await fetch_team_stats(team_name)
-            except Exception as e:
-                print(f"team stats refresh failed for {team_name}: {e}")
+    if any_match_finished:
+        from app.services.fotmob_team_stats import refresh_all_team_stats
+        try:
+            await refresh_all_team_stats()
+        except Exception as e:
+            print(f"team stats refresh failed: {e}")
 
     return count
 
