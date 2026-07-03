@@ -122,6 +122,18 @@ def _load_real_r32_matchups() -> List[Tuple[str, str]]:
     one, so the "already played" check in _simulate_knockout_match never
     matched).
     """
+    return _load_real_round_matchups("Round of 32")
+
+
+def _load_real_round_matchups(round_name: str) -> List[Tuple[str, str]]:
+    """
+    Real bracket pairings for one knockout round straight from the fixtures
+    table, in kickoff order — covers both already-played matches and matches
+    that are merely scheduled (both opponents known, game not yet played).
+    Only rows where both teams are populated are returned; football-data.org
+    fills a round's fixture rows in with real team names as soon as both of
+    that match's participants are determined, even before kickoff.
+    """
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
@@ -129,12 +141,41 @@ def _load_real_r32_matchups() -> List[Tuple[str, str]]:
         FROM fixtures f
         LEFT JOIN teams ht ON f.home_team_id = ht.id
         LEFT JOIN teams at ON f.away_team_id = at.id
-        WHERE f.round = 'Round of 32'
+        WHERE f.round = ?
         ORDER BY f.date_utc
-    """)
+    """, (round_name,))
     rows = cur.fetchall()
     conn.close()
     return [(r["home"], r["away"]) for r in rows if r["home"] and r["away"]]
+
+
+def _resolve_round_matchups(
+    round_name: str,
+    prev_winners: List[str],
+    real_matchups_cache: Dict[str, List[Tuple[str, str]]],
+) -> List[Tuple[str, str]]:
+    """
+    Pair up this round's participants, preferring real confirmed pairings
+    from the fixtures table over naive sequential pairing of this
+    iteration's simulated winners — sequential pairing doesn't reliably
+    reflect the true bracket tree (verified: it mispairs several real Round
+    of 16 matchups, e.g. producing "Canada vs Brazil" when the real bracket
+    is "Canada vs Morocco" / "Brazil vs Norway"). Falls back to sequential
+    pairing only for slots whose real opponents aren't determined yet.
+    """
+    remaining = list(prev_winners)
+    matchups = []
+
+    for home, away in real_matchups_cache.get(round_name, []):
+        if home in remaining and away in remaining:
+            matchups.append((home, away))
+            remaining.remove(home)
+            remaining.remove(away)
+
+    for i in range(0, len(remaining) - 1, 2):
+        matchups.append((remaining[i], remaining[i + 1]))
+
+    return matchups
 
 
 def _precompute_group_preds(groups: Dict[str, List[str]], model_params: Dict) -> Dict:
@@ -370,6 +411,12 @@ def simulate_tournament(
     # priority over the guessed group-position bracket below when available.
     real_r32_matchups = _load_real_r32_matchups()
     r32_bracket_locked = len(real_r32_matchups) == len(R32_BRACKET_SLOTS)
+    # Real R16+ pairings as football-data.org fills them in — see
+    # _resolve_round_matchups for why naive sequential pairing isn't enough.
+    real_matchups_cache = {
+        rnd: _load_real_round_matchups(rnd)
+        for rnd in ("Round of 16", "Quarter-finals", "Semi-finals", "Final")
+    }
 
     # Pre-compute all 72 group stage predictions once — reused across all n_sims iterations
     group_pred_cache = _precompute_group_preds(groups, model_params)
@@ -402,36 +449,34 @@ def simulate_tournament(
         for t in r32_winners:
             counts[t]["r16"] += 1
 
-        r16_winners = []
-        for i in range(0, len(r32_winners), 2):
-            if i + 1 < len(r32_winners):
-                w = _simulate_knockout_match(
-                    r32_winners[i], r32_winners[i + 1], knockout_pred_cache, completed_results
-                )
-                r16_winners.append(w)
-                counts[w]["qf"] += 1
+        r16_matchups = _resolve_round_matchups("Round of 16", r32_winners, real_matchups_cache)
+        r16_winners = [
+            _simulate_knockout_match(a, b, knockout_pred_cache, completed_results)
+            for a, b in r16_matchups
+        ]
+        for w in r16_winners:
+            counts[w]["qf"] += 1
 
-        qf_winners = []
-        for i in range(0, len(r16_winners), 2):
-            if i + 1 < len(r16_winners):
-                w = _simulate_knockout_match(
-                    r16_winners[i], r16_winners[i + 1], knockout_pred_cache, completed_results
-                )
-                qf_winners.append(w)
-                counts[w]["sf"] += 1
+        qf_matchups = _resolve_round_matchups("Quarter-finals", r16_winners, real_matchups_cache)
+        qf_winners = [
+            _simulate_knockout_match(a, b, knockout_pred_cache, completed_results)
+            for a, b in qf_matchups
+        ]
+        for w in qf_winners:
+            counts[w]["sf"] += 1
 
-        sf_winners = []
-        for i in range(0, len(qf_winners), 2):
-            if i + 1 < len(qf_winners):
-                w = _simulate_knockout_match(
-                    qf_winners[i], qf_winners[i + 1], knockout_pred_cache, completed_results
-                )
-                sf_winners.append(w)
-                counts[w]["final"] += 1
+        sf_matchups = _resolve_round_matchups("Semi-finals", qf_winners, real_matchups_cache)
+        sf_winners = [
+            _simulate_knockout_match(a, b, knockout_pred_cache, completed_results)
+            for a, b in sf_matchups
+        ]
+        for w in sf_winners:
+            counts[w]["final"] += 1
 
-        if len(sf_winners) >= 2:
+        final_matchups = _resolve_round_matchups("Final", sf_winners, real_matchups_cache)
+        if final_matchups:
             champion = _simulate_knockout_match(
-                sf_winners[0], sf_winners[1], knockout_pred_cache, completed_results
+                *final_matchups[0], knockout_pred_cache, completed_results
             )
             counts[champion]["winner"] += 1
 
