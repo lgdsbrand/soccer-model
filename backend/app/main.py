@@ -6,7 +6,7 @@ import asyncio
 
 from app.config import get_settings
 from app.database import init_db
-from app.routers import fixtures, standings, predictions, teams, insights
+from app.routers import fixtures, standings, predictions, teams, insights, team_stats
 from app.services import football_data_org
 
 settings = get_settings()
@@ -43,12 +43,12 @@ def _run_monte_carlo_sync():
 
 
 async def _refresh_data():
-    """Hourly job: fetch live data, re-run Monte Carlo if standings changed, sync goals."""
+    """Hourly job: fetch live data, re-run Monte Carlo, sync goals."""
     from app.services.openfootball import sync_goal_scorers
     from scripts.backfill_api_football_ids import sync_api_football_ids
 
     await football_data_org.fetch_and_store_fixtures()
-    standings_changed = await football_data_org.fetch_standings()
+    await football_data_org.fetch_standings()
 
     # Sync real goal scorer data from openfootball (fast, no rate limit)
     await sync_goal_scorers()
@@ -56,23 +56,14 @@ async def _refresh_data():
     # Sync API-Football fixture IDs for stats (sliding 3-day window)
     await sync_api_football_ids()
 
-    if not standings_changed:
-        return
-
-    # Check whether standings are newer than the last MC run
-    from app.database import get_connection
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT MAX(updated_at) as last_standings FROM standings")
-    last_standings = (cur.fetchone()["last_standings"] or 0)
-    cur.execute("SELECT MIN(computed_at) as last_mc FROM advancement_probs")
-    last_mc = (cur.fetchone()["last_mc"] or 0)
-    conn.close()
-
-    if last_standings <= last_mc:
-        return
-
-    print("Standings updated — re-running Monte Carlo simulation...")
+    # Always re-run — previously gated on "did group standings change," which
+    # permanently stops being true once the group stage ends, so eliminated
+    # knockout teams (e.g. Japan losing in the Round of 32) kept showing their
+    # stale pre-elimination advancement odds indefinitely. This is a cheap,
+    # local, ~60s computation with no external API calls, so there's no real
+    # cost to just always running it hourly instead of trying to detect
+    # exactly which kind of result changed.
+    print("Re-running Monte Carlo simulation...")
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, _run_monte_carlo_sync)
 
@@ -139,6 +130,7 @@ app.include_router(standings.router)
 app.include_router(predictions.router)
 app.include_router(teams.router)
 app.include_router(insights.router)
+app.include_router(team_stats.router)
 
 
 @app.get("/")

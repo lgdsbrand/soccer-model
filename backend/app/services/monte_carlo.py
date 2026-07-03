@@ -51,8 +51,23 @@ def _simulate_match_from_pred(pred: Dict) -> str:
     return "away"
 
 
-def _simulate_knockout_match(team_a: str, team_b: str, pred_cache: Dict) -> str:
-    """Knockout match — no draws. Uses cached predictions."""
+def _simulate_knockout_match(
+    team_a: str, team_b: str, pred_cache: Dict,
+    completed_results: Optional[Dict] = None,
+) -> str:
+    """
+    Knockout match — no draws. If this exact matchup has already been played
+    for real, deterministically return the real winner instead of simulating
+    (otherwise every one of the 10k iterations would re-gamble a result that
+    already happened, e.g. Japan already lost to Brazil in the real Round of
+    32 — the simulation should reflect that as certain, not ~40% likely).
+    Falls back to the model prediction for matchups that haven't been played.
+    """
+    if completed_results:
+        real_winner = completed_results.get(frozenset((team_a, team_b)))
+        if real_winner is not None:
+            return real_winner
+
     key = (team_a, team_b)
     if key not in pred_cache:
         pred_cache[key] = predict_match(team_a, team_b)
@@ -61,6 +76,65 @@ def _simulate_knockout_match(team_a: str, team_b: str, pred_cache: Dict) -> str:
     if result == "draw":
         return team_a if np.random.random() < 0.5 else team_b
     return team_a if result == "home" else team_b
+
+
+def _load_completed_knockout_results() -> Dict[frozenset, str]:
+    """
+    Real, already-decided knockout results — {frozenset({team_a, team_b}): winner}.
+    Only matches with a clear score margin are included; a tied scoreline on
+    a PEN/AET match (shootout winner not reflected in home_score/away_score)
+    is deliberately skipped rather than guessed at.
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT ht.name as home_name, at.name as away_name, f.home_score, f.away_score
+        FROM fixtures f
+        JOIN teams ht ON f.home_team_id = ht.id
+        JOIN teams at ON f.away_team_id = at.id
+        WHERE f.status IN ('FT', 'AET', 'PEN')
+          AND f.round NOT LIKE 'Group Stage%'
+          AND f.round != '3rd Place'
+    """)
+    results: Dict[frozenset, str] = {}
+    for row in cur.fetchall():
+        hs, as_ = row["home_score"], row["away_score"]
+        if hs is None or as_ is None or hs == as_:
+            continue
+        winner = row["home_name"] if hs > as_ else row["away_name"]
+        results[frozenset((row["home_name"], row["away_name"]))] = winner
+    conn.close()
+    return results
+
+
+def _load_real_r32_matchups() -> List[Tuple[str, str]]:
+    """
+    Real Round of 32 pairings straight from the fixtures table, in kickoff
+    order. Once the group stage (incl. 3rd-place qualification) is settled,
+    football-data.org populates all 16 R32 rows with the real, official team
+    names — this is ground truth and far more reliable than re-deriving the
+    FIFA draw's 3rd-place slotting ourselves (R32_BRACKET_SLOTS above has
+    several slots marked "inferred" that were only best-guesses at the time
+    they were written, before the real draw/results were known — e.g. this
+    is why Germany and Congo DR, both already eliminated in the real R32,
+    kept showing large non-zero odds for R16+: the simulation was pairing
+    them against a guessed, sometimes-wrong opponent instead of their real
+    one, so the "already played" check in _simulate_knockout_match never
+    matched).
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT ht.name as home, at.name as away
+        FROM fixtures f
+        LEFT JOIN teams ht ON f.home_team_id = ht.id
+        LEFT JOIN teams at ON f.away_team_id = at.id
+        WHERE f.round = 'Round of 32'
+        ORDER BY f.date_utc
+    """)
+    rows = cur.fetchall()
+    conn.close()
+    return [(r["home"], r["away"]) for r in rows if r["home"] and r["away"]]
 
 
 def _precompute_group_preds(groups: Dict[str, List[str]], model_params: Dict) -> Dict:
@@ -289,6 +363,13 @@ def simulate_tournament(
 
     # Load live standings + remaining fixtures once; shared across all sims
     live_pts, remaining_fixtures = _load_live_group_state()
+    # Real knockout results already played — shared across all sims so eliminated
+    # teams (e.g. Japan) can't keep winning simulated rematches against reality.
+    completed_results = _load_completed_knockout_results()
+    # Real R32 pairings once the bracket is fully set (see docstring) — takes
+    # priority over the guessed group-position bracket below when available.
+    real_r32_matchups = _load_real_r32_matchups()
+    r32_bracket_locked = len(real_r32_matchups) == len(R32_BRACKET_SLOTS)
 
     # Pre-compute all 72 group stage predictions once — reused across all n_sims iterations
     group_pred_cache = _precompute_group_preds(groups, model_params)
@@ -312,8 +393,11 @@ def simulate_tournament(
         for t in r32_teams:
             counts[t]["r32"] += 1
 
-        matchups = _build_r32_bracket(group_results, third_qualifiers)
-        r32_winners = [_simulate_knockout_match(a, b, knockout_pred_cache) for a, b in matchups]
+        matchups = real_r32_matchups if r32_bracket_locked else _build_r32_bracket(group_results, third_qualifiers)
+        r32_winners = [
+            _simulate_knockout_match(a, b, knockout_pred_cache, completed_results)
+            for a, b in matchups
+        ]
 
         for t in r32_winners:
             counts[t]["r16"] += 1
@@ -321,26 +405,34 @@ def simulate_tournament(
         r16_winners = []
         for i in range(0, len(r32_winners), 2):
             if i + 1 < len(r32_winners):
-                w = _simulate_knockout_match(r32_winners[i], r32_winners[i + 1], knockout_pred_cache)
+                w = _simulate_knockout_match(
+                    r32_winners[i], r32_winners[i + 1], knockout_pred_cache, completed_results
+                )
                 r16_winners.append(w)
                 counts[w]["qf"] += 1
 
         qf_winners = []
         for i in range(0, len(r16_winners), 2):
             if i + 1 < len(r16_winners):
-                w = _simulate_knockout_match(r16_winners[i], r16_winners[i + 1], knockout_pred_cache)
+                w = _simulate_knockout_match(
+                    r16_winners[i], r16_winners[i + 1], knockout_pred_cache, completed_results
+                )
                 qf_winners.append(w)
                 counts[w]["sf"] += 1
 
         sf_winners = []
         for i in range(0, len(qf_winners), 2):
             if i + 1 < len(qf_winners):
-                w = _simulate_knockout_match(qf_winners[i], qf_winners[i + 1], knockout_pred_cache)
+                w = _simulate_knockout_match(
+                    qf_winners[i], qf_winners[i + 1], knockout_pred_cache, completed_results
+                )
                 sf_winners.append(w)
                 counts[w]["final"] += 1
 
         if len(sf_winners) >= 2:
-            champion = _simulate_knockout_match(sf_winners[0], sf_winners[1], knockout_pred_cache)
+            champion = _simulate_knockout_match(
+                sf_winners[0], sf_winners[1], knockout_pred_cache, completed_results
+            )
             counts[champion]["winner"] += 1
 
     # Convert to percentages
