@@ -165,7 +165,7 @@ export default function MatchCard({ fixture, compact }: Props) {
           {/* Last 5 Form */}
           {(fixture.home_last5?.length > 0 || fixture.away_last5?.length > 0) && (
             <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: "12px" }}>
                 <FormRow label={`${fixture.home_name} Last 5`} results={fixture.home_last5 ?? []} teamId={fixture.home_team_id} />
                 <FormRow label={`${fixture.away_name} Last 5`} results={fixture.away_last5 ?? []} teamId={fixture.away_team_id} />
               </div>
