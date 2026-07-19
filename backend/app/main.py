@@ -96,12 +96,28 @@ async def _sync_goals_on_startup():
 
 
 async def _initial_seed():
-    """Refresh fixtures and standings on every startup."""
+    """
+    Refresh fixtures, standings, and tournament winner odds on every startup.
+
+    Monte Carlo used to only re-run from the hourly scheduler job, which
+    doesn't fire until an hour after the process starts. On Render's free
+    plan the service spins down after ~15 min idle, so a cold start would
+    refresh fixtures/standings immediately but never live long enough to
+    reach that first hourly tick — leaving advancement_probs (the
+    "tournament winner" odds) frozen on whatever was last computed, even as
+    fixtures kept moving further ahead. Running it here too means every
+    cold start recomputes odds against the data it just fetched.
+    """
     print("Startup refresh: fetching fixtures from football-data.org...")
     n = await football_data_org.fetch_and_store_fixtures()
     print(f"Startup refresh: {n} fixtures synced")
     await football_data_org.fetch_standings()
     print("Startup refresh: standings synced")
+
+    print("Startup refresh: re-running Monte Carlo simulation...")
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, _run_monte_carlo_sync)
+    print("Startup refresh: Monte Carlo complete")
 
 
 app = FastAPI(
