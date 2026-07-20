@@ -100,8 +100,13 @@ def _is_bad_response(text: Optional[str]) -> bool:
     return any(marker in lowered for marker in _REFUSAL_MARKERS)
 
 
-async def get_style_of_play(team_name: str, coach: Optional[str] = None) -> str:
-    """Generate or retrieve cached team style of play description."""
+async def get_style_of_play(team_name: str, coach: Optional[str] = None, team_type: str = "national football team") -> str:
+    """
+    Generate or retrieve cached team style of play description.
+    team_type: how the prompt refers to the team — "national football team"
+    (default, preserves existing World Cup behavior) or e.g. "MLS club" for
+    a league where the team isn't a country's national side.
+    """
     cache_key = f"style:{team_name.lower().replace(' ', '_')}"
     fallback = f"{team_name} plays a competitive style with organized defending and dangerous counter-attacks."
 
@@ -113,7 +118,7 @@ async def get_style_of_play(team_name: str, coach: Optional[str] = None) -> str:
         return cached
 
     coach_info = f", coached by {coach}," if coach else ""
-    prompt = f"""Describe {team_name}'s national football team{coach_info} typical style of play, based on their well-established tactical identity.
+    prompt = f"""Describe {team_name}'s {team_type}{coach_info} typical style of play, based on their well-established tactical identity.
 Focus on: typical formation, pressing intensity, build-up style, attacking approach.
 Write exactly 2-3 factual, direct sentences. State it as fact — do not mention the World Cup, future events, predictions, or any uncertainty or knowledge limitations."""
 
@@ -133,7 +138,8 @@ Write exactly 2-3 factual, direct sentences. State it as fact — do not mention
 async def get_predicted_lineup(
     team_name: str,
     formation: Optional[str] = None,
-    known_players: Optional[List[str]] = None
+    known_players: Optional[List[str]] = None,
+    competition_label: str = "the 2026 FIFA World Cup",
 ) -> Dict:
     """Generate predicted lineup using LLM."""
     cache_key = f"lineup_pred:{team_name.lower().replace(' ', '_')}"
@@ -157,7 +163,7 @@ async def get_predicted_lineup(
         "Choose the formation that matches this team's real, well-known tactical identity — do not default to a generic choice."
     )
 
-    prompt = f"""Predict the most likely starting XI for {team_name} at the 2026 FIFA World Cup.
+    prompt = f"""Predict the most likely starting XI for {team_name} at {competition_label}.
 {formation_instruction}
 {players_hint}
 
@@ -194,7 +200,7 @@ Include exactly 11 players."""
     return default
 
 
-async def _search_team_news(home: str, away: str) -> str:
+async def _search_team_news(home: str, away: str, competition_label: str = "World Cup 2026") -> str:
     """
     Tavily search for pre-match news: injuries, lineup updates, recent form.
     Two targeted queries — one per team — merged into a single context block.
@@ -216,8 +222,8 @@ async def _search_team_news(home: str, away: str) -> str:
         snippets: List[str] = []
 
         for team, query in [
-            (home, f"{home} World Cup 2026 injury news lineup team news"),
-            (away, f"{away} World Cup 2026 injury news lineup team news"),
+            (home, f"{home} {competition_label} injury news lineup team news"),
+            (away, f"{away} {competition_label} injury news lineup team news"),
         ]:
             resp = client.search(
                 query=query,
@@ -245,10 +251,16 @@ async def _search_team_news(home: str, away: str) -> str:
         return ""
 
 
-async def get_match_analysis(match_context: Dict) -> str:
+async def get_match_analysis(match_context: Dict, competition_label: str = "World Cup 2026") -> str:
     """
     Full AI match analysis using Gemini (deeper) with Groq fallback.
     Enriched with live Tavily news search for injuries and lineup updates.
+
+    match_context["fixture_id"] is used verbatim as the cache key suffix —
+    callers sharing this cache table across leagues with independent ID
+    spaces (e.g. MLS fixture IDs from ESPN vs WC fixture IDs from
+    football-data.org) should pass a prefixed id (e.g. "mls-761946") to
+    avoid two different matches colliding on the same integer.
     """
     fixture_id = match_context.get("fixture_id", "")
     cache_key = f"analysis:{fixture_id}"
@@ -262,14 +274,18 @@ async def get_match_analysis(match_context: Dict) -> str:
     draw = match_context.get("draw_pct", 25)
     away_win = match_context.get("away_win_pct", 35)
     btts = match_context.get("btts_pct", 45)
-    over15 = match_context.get("over_1_5_pct", 70)
+    # MLS odds-derived predictions track Over 3.5 (no MLS book quotes a 1.5
+    # line); the World Cup's Dixon-Coles predictions track Over 1.5.
+    is_mls = competition_label == "MLS"
+    over_goals_label = "Over 3.5 goals" if is_mls else "Over 1.5 goals"
+    over_goals_pct = match_context.get("over_3_5_pct" if is_mls else "over_1_5_pct", 70)
     home_last5 = match_context.get("home_form", "")
     away_last5 = match_context.get("away_form", "")
     venue = match_context.get("venue", "")
     weather = match_context.get("weather", "")
 
     # Fetch live news for both teams before building the prompt
-    live_news = await _search_team_news(home, away)
+    live_news = await _search_team_news(home, away, competition_label)
     news_section = f"\nLatest news and injury updates (live web search):\n{live_news}" if live_news else ""
 
     prompt = f"""You are an expert football analyst. Write a sharp, data-driven match preview for:
@@ -279,7 +295,7 @@ Venue: {venue}
 Weather: {weather}
 
 Model probabilities: {home} wins {home_win}% | Draw {draw}% | {away} wins {away_win}%
-BTTS: {btts}% | Over 1.5 goals: {over15}%
+BTTS: {btts}% | {over_goals_label}: {over_goals_pct}%
 
 {home} recent form: {home_last5}
 {away} recent form: {away_last5}
@@ -298,7 +314,11 @@ Write 3-4 sentences covering: key tactical matchup, any injury or lineup concern
     return content
 
 
-async def get_key_players(team_name: str, squad_names: Optional[List[str]] = None) -> List[Dict]:
+async def get_key_players(
+    team_name: str,
+    squad_names: Optional[List[str]] = None,
+    competition_label: str = "the 2026 FIFA World Cup",
+) -> List[Dict]:
     """Return 3-5 key players for a team."""
     cache_key = f"key_players:{team_name.lower().replace(' ', '_')}"
     cached = _get_cached(cache_key)
@@ -307,7 +327,7 @@ async def get_key_players(team_name: str, squad_names: Optional[List[str]] = Non
 
     squad_hint = f"Known squad: {', '.join(squad_names[:20])}." if squad_names else ""
 
-    prompt = f"""List the 4 most important players for {team_name} at the 2026 FIFA World Cup.
+    prompt = f"""List the 4 most important players for {team_name} at {competition_label}.
 {squad_hint}
 
 Return ONLY a JSON array:

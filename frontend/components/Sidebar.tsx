@@ -2,8 +2,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import LeagueSwitcher from "./mls/LeagueSwitcher";
 
-const nav = [
+const wcNav = [
   { href: "/", label: "Dashboard", icon: "⚡" },
   { href: "/matches", label: "Matches", icon: "⚽" },
   { href: "/predictions", label: "Predictions", icon: "📊" },
@@ -12,9 +13,17 @@ const nav = [
   { href: "/teams", label: "Teams", icon: "🌍" },
 ];
 
+const mlsNav = [
+  { href: "/mls", label: "Dashboard", icon: "⚡" },
+  { href: "/mls/matches", label: "Matches", icon: "⚽" },
+  { href: "/mls/standings", label: "Standings", icon: "🏆" },
+];
+
 export default function Sidebar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const isMls = pathname.startsWith("/mls");
+  const nav = isMls ? mlsNav : wcNav;
 
   // Close the mobile menu automatically whenever the route changes
   useEffect(() => {
@@ -71,10 +80,18 @@ export default function Sidebar() {
             fontSize: "18px",
           }}>🏆</div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: "14px", color: "var(--text-primary)" }}>WC Predictor</div>
-            <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>World Cup 2026</div>
+            <div style={{ fontWeight: 700, fontSize: "14px", color: "var(--text-primary)" }}>
+              {isMls ? "MLS Predictor" : "WC Predictor"}
+            </div>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+              {isMls ? "MLS 2026" : "World Cup 2026"}
+            </div>
           </div>
         </div>
+      </div>
+
+      <div style={{ marginTop: "14px" }}>
+        <LeagueSwitcher isMls={isMls} />
       </div>
 
       {/* Nav */}

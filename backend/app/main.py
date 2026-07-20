@@ -8,6 +8,9 @@ from app.config import get_settings
 from app.database import init_db
 from app.routers import fixtures, standings, predictions, teams, insights, team_stats
 from app.services import football_data_org
+from app.mls.database import init_mls_db
+from app.mls.services import mls_source, odds_api, mls_team_stats
+from app.mls.routers import fixtures as mls_fixtures, standings as mls_standings
 
 settings = get_settings()
 scheduler = AsyncIOScheduler()
@@ -68,18 +71,39 @@ async def _refresh_data():
     await loop.run_in_executor(None, _run_monte_carlo_sync)
 
 
+async def _refresh_mls_data():
+    """Every-12h job: fetch MLS fixtures/standings (ESPN) and refresh odds-derived match probs.
+
+    Runs less often than the WC refresh (hourly) specifically to bound The
+    Odds API credit spend: every refresh now costs 1 bulk call (h2h+totals)
+    plus 1 per-event call for btts (~30 MLS fixtures/slate), so hourly would
+    run ~31 calls/hour ≈ 22k/month — 12h cuts that to ~1,900/month, well
+    inside quota. See MLS_BUILD_STATUS.md.
+    """
+    n = await mls_source.fetch_and_store_teams_and_fixtures()
+    await mls_source.fetch_standings()
+    written, unmatched = await odds_api.fetch_and_store_match_probs()
+    stats_n = await mls_team_stats.refresh_all_team_stats()
+    print(f"MLS refresh: {n} fixtures synced, {written} match-prob rows written, "
+          f"{stats_n} team stats updated"
+          + (f", {len(unmatched)} unmatched odds team name(s)" if unmatched else ""))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     init_db()
+    init_mls_db()
     print("Database initialized")
 
     scheduler.add_job(_refresh_data, "interval", hours=1, id="refresh_data")
+    scheduler.add_job(_refresh_mls_data, "interval", hours=12, id="refresh_mls_data")
     scheduler.start()
-    print("Scheduler started (hourly refresh + conditional Monte Carlo)")
+    print("Scheduler started (WC hourly, MLS every 12h + conditional Monte Carlo)")
 
     # Initial data load + goal scorer sync (non-blocking)
     asyncio.create_task(_initial_seed())
+    asyncio.create_task(_initial_seed_mls())
     asyncio.create_task(_sync_goals_on_startup())
 
     yield
@@ -120,6 +144,19 @@ async def _initial_seed():
     print("Startup refresh: Monte Carlo complete")
 
 
+async def _initial_seed_mls():
+    """
+    MLS equivalent of _initial_seed() — same cold-start reasoning applies:
+    on Render's free plan the scheduled job (every 12h) may never fire before
+    the service spins back down, so refresh on every startup too. Note this
+    means actual Odds API call frequency tracks how often the service cold
+    starts, not strictly the 12h interval — see MLS_BUILD_STATUS.md.
+    """
+    print("Startup refresh: fetching MLS fixtures/standings from ESPN...")
+    await _refresh_mls_data()
+    print("Startup refresh: MLS data synced")
+
+
 app = FastAPI(
     title="WC2026 Prediction API",
     description="World Cup 2026 match predictions and statistics",
@@ -147,6 +184,8 @@ app.include_router(predictions.router)
 app.include_router(teams.router)
 app.include_router(insights.router)
 app.include_router(team_stats.router)
+app.include_router(mls_fixtures.router)
+app.include_router(mls_standings.router)
 
 
 @app.get("/")

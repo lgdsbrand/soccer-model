@@ -6,14 +6,24 @@ import { formatDate, formatTime, getStatusLabel } from "@/lib/api";
 interface Props {
   fixture: FixtureDetail;
   compact?: boolean;
+  basePath?: string;
+  showRecommendedPlay?: boolean;
 }
 
-export default function MatchCard({ fixture, compact }: Props) {
+const KNOCKOUT_ROUNDS = new Set([
+  "Round of 32", "Round of 16", "Quarter-finals", "Semi-finals", "Final", "3rd Place",
+]);
+
+export default function MatchCard({ fixture, compact, basePath = "/matches", showRecommendedPlay = true }: Props) {
   const status = getStatusLabel(fixture.status);
   const pred = fixture.prediction;
   const isLive = ["1H", "2H", "HT", "ET", "P"].includes(fixture.status);
   const isFinished = ["FT", "AET", "PEN"].includes(fixture.status);
-  const isKnockout = !fixture.round?.startsWith("Group Stage");
+  // Explicit allowlist rather than "anything not Group Stage" — a blacklist
+  // heuristic silently mis-tags any other competition's round label (e.g.
+  // MLS's "Regular Season") as a draw-less knockout match, which would hide
+  // a real draw_pct the odds-derived MLS predictions actually have.
+  const isKnockout = KNOCKOUT_ROUNDS.has(fixture.round);
 
   return (
     <div className="card" style={{ overflow: "hidden" }}>
@@ -113,7 +123,7 @@ export default function MatchCard({ fixture, compact }: Props) {
 
       {compact && (
         <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border)", textAlign: "center" }}>
-          <Link href={`/matches/${fixture.id}`} style={{
+          <Link href={`${basePath}/${fixture.id}`} style={{
             fontSize: "13px", color: "var(--accent-purple)", textDecoration: "none", fontWeight: 600
           }}>View Full Analysis →</Link>
         </div>
@@ -133,17 +143,39 @@ export default function MatchCard({ fixture, compact }: Props) {
                 awayName={fixture.away_name}
                 knockout={isKnockout}
               />
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "8px", marginTop: "16px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: pred.expected_home_goals != null ? "1fr 1fr 1fr 1fr" : "1fr 1fr 1fr", gap: "8px", marginTop: "16px" }}>
                 <StatChip label="BTTS" value={`${pred.btts_pct}%`} color="var(--accent-purple)" />
-                <StatChip label="O1.5 Goals" value={`${pred.over_1_5_pct}%`} color="var(--accent-blue, #3d9df3)" />
-                <StatChip label="O2.5 Goals" value={`${pred.over_2_5_pct}%`} color="var(--accent-gold)" />
-                <StatChip label="xG Home" value={pred.expected_home_goals.toFixed(2)} color="var(--accent-green)" />
+                {/* WC (Dixon-Coles) always has both O1.5 and O2.5. MLS (odds-derived) tracks
+                    O2.5/O3.5 instead of O1.5/O2.5 (no MLS book quotes a 1.5 line), and per
+                    match only ONE of O2.5/O3.5 is ever populated — bookmakers quote either a
+                    2.5 or a 3.5 total for a given MLS fixture, never both — so those two are
+                    gated on presence instead of assumed to always be there. */}
+                {pred.expected_home_goals != null ? (
+                  <StatChip label="O1.5 Goals" value={`${pred.over_1_5_pct}%`} color="var(--accent-blue, #3d9df3)" />
+                ) : (
+                  pred.over_3_5_pct != null && (
+                    <StatChip label="O3.5 Goals" value={`${pred.over_3_5_pct}%`} color="var(--accent-blue, #3d9df3)" />
+                  )
+                )}
+                {(pred.expected_home_goals != null || pred.over_2_5_pct != null) && (
+                  <StatChip label="O2.5 Goals" value={`${pred.over_2_5_pct}%`} color="var(--accent-gold)" />
+                )}
+                {/* xG is Dixon-Coles-only (not derivable from odds markets) — MLS predictions won't have it */}
+                {pred.expected_home_goals != null && (
+                  <StatChip label="xG Home" value={pred.expected_home_goals.toFixed(2)} color="var(--accent-green)" />
+                )}
               </div>
             </div>
           )}
 
-          {/* Important Stats: Attack Strength, Goals/xG, Goals Allowed/xGA */}
-          {(fixture.home_attack_rating != null || fixture.away_attack_rating != null) && (
+          {/* Important Stats: Attack Strength, Goals/xG, Goals Allowed/xGA, and/or
+              season stats (corners/shots/fouls) — AttackRatingSection itself already
+              filters out any row with no data on both sides, so this only needs to
+              gate on "is there anything at all to show" rather than specifically the
+              Dixon-Coles-derived fields (MLS matches have team stats but no
+              Dixon-Coles rating, since MLS predictions are odds-market-derived). */}
+          {(fixture.home_attack_rating != null || fixture.away_attack_rating != null ||
+            fixture.home_team_stats != null || fixture.away_team_stats != null) && (
             <AttackRatingSection
               homeName={fixture.home_name}
               awayName={fixture.away_name}
@@ -231,8 +263,12 @@ export default function MatchCard({ fixture, compact }: Props) {
             </div>
           )}
 
-          {/* Recommended Play */}
-          {fixture.recommended_play
+          {/* Recommended Play — suppressed entirely (not just "no data yet")
+              where the caller knows nothing will ever generate one, e.g. MLS,
+              which doesn't have this feature. Showing the "generating..."
+              placeholder there would be misleading — it implies a background
+              job is running when none is. */}
+          {showRecommendedPlay && (fixture.recommended_play
             ? <RecommendedPlaySection play={fixture.recommended_play} />
             : (
               <div style={{ borderTop: "1px solid var(--border)", paddingTop: "16px", marginTop: "8px" }}>
@@ -245,7 +281,7 @@ export default function MatchCard({ fixture, compact }: Props) {
                 </div>
               </div>
             )
-          }
+          )}
         </>
       )}
     </div>
@@ -403,6 +439,8 @@ function AttackRatingSection({
 
   if (!rows.length) return null;
 
+  const hasAttackStrength = rows.some(r => r.label === "Attack Strength");
+
   return (
     <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)" }}>
       <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px", fontWeight: 600 }}>IMPORTANT STATS</div>
@@ -427,9 +465,11 @@ function AttackRatingSection({
           </div>
         </div>
       ))}
-      <div style={{ marginTop: "10px", fontSize: "11px", color: "var(--text-muted)", textAlign: "center" }}>
-        Attack Strength on a 0-100 scale
-      </div>
+      {hasAttackStrength && (
+        <div style={{ marginTop: "10px", fontSize: "11px", color: "var(--text-muted)", textAlign: "center" }}>
+          Attack Strength on a 0-100 scale
+        </div>
+      )}
     </div>
   );
 }

@@ -4,13 +4,13 @@ import Link from "next/link";
 import type { Fixture } from "@/lib/api";
 import { formatDate, formatTime, getStatusLabel } from "@/lib/api";
 
-export default function FixtureRow({ fixture }: { fixture: Fixture }) {
+export default function FixtureRow({ fixture, basePath = "/matches" }: { fixture: Fixture; basePath?: string }) {
   const status = getStatusLabel(fixture.status);
   const isLive = ["1H", "2H", "HT", "ET", "P"].includes(fixture.status);
   const isFinished = ["FT", "AET", "PEN"].includes(fixture.status);
 
   return (
-    <Link href={`/matches/${fixture.id}`} style={{ textDecoration: "none" }}>
+    <Link href={`${basePath}/${fixture.id}`} style={{ textDecoration: "none" }}>
       <div className="fixture-row" style={{
         display: "flex", alignItems: "center", gap: "12px",
         padding: "12px 16px", borderRadius: "8px",

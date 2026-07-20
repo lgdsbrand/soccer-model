@@ -1,6 +1,6 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: { "Content-Type": "application/json", ...options?.headers },
@@ -202,6 +202,7 @@ export interface Prediction {
   btts_pct: number;
   over_1_5_pct: number;
   over_2_5_pct: number;
+  over_3_5_pct?: number; // MLS only — odds-derived, no MLS book quotes a 1.5 line
   expected_home_goals: number;
   expected_away_goals: number;
 }
