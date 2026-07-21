@@ -97,6 +97,9 @@ export interface FixtureDetail extends Fixture {
   weather?: Weather;
   home_last5: Fixture[];
   away_last5: Fixture[];
+  head_to_head?: Fixture[]; // MLS only — not set by the WC endpoint
+  home_team_record?: TeamRecord; // MLS only — not set by the WC endpoint
+  away_team_record?: TeamRecord;
   lineups?: LineupEntry[];
   lineups_confirmed: boolean;
   home_stats_avg?: TeamStats;
@@ -116,6 +119,20 @@ export interface FixtureDetail extends Fixture {
   away_formation?: string;
   home_style_of_play?: string;
   away_style_of_play?: string;
+}
+
+export interface RecordSplit {
+  won: number;
+  drawn: number;
+  lost: number;
+  played: number;
+  points: number;
+}
+
+export interface TeamRecord {
+  all: RecordSplit;
+  home: RecordSplit;
+  away: RecordSplit;
 }
 
 export interface Weather {

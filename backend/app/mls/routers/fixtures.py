@@ -97,8 +97,16 @@ async def get_mls_fixture_detail(fixture_id: int, background_tasks: BackgroundTa
 
     fixture["home_match_stats"] = None
     fixture["away_match_stats"] = None
-    fixture["home_last5"] = []
-    fixture["away_last5"] = []
+    # Field kept as "last5" to match the shared frontend FixtureDetail type
+    # (also used by WC), but holds up to 10 results for MLS — see FormRow
+    # in MatchCard.tsx, which sizes its "Last N" label off the array length.
+    fixture["home_last5"] = _get_mls_last10(fixture["home_team_id"])
+    fixture["away_last5"] = _get_mls_last10(fixture["away_team_id"])
+
+    fixture["head_to_head"] = _get_mls_head_to_head(fixture["home_team_id"], fixture["away_team_id"])
+
+    fixture["home_team_record"] = _get_mls_team_record(fixture["home_team_id"], fixture["season"])
+    fixture["away_team_record"] = _get_mls_team_record(fixture["away_team_id"], fixture["season"])
 
     fixture["home_team_stats"] = _get_mls_team_season_stats(fixture["home_name"])
     fixture["away_team_stats"] = _get_mls_team_season_stats(fixture["away_name"])
@@ -157,6 +165,99 @@ async def get_mls_fixture_detail(fixture_id: int, background_tasks: BackgroundTa
         fixture["away_style_of_play"] = None
 
     return fixture
+
+
+def _get_mls_last10(team_id: int) -> list:
+    """Team's last 10 finished matches, newest first — same shape/query as WC's fetch_last5,
+    just against mls_fixtures/mls_teams and LIMIT 10 instead of 5. All 10 games already sit
+    in the local DB (ESPN-sourced), so no external fetch/cache-fill step is needed here."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT f.*, ht.name as home_name, ht.logo as home_logo,
+               at.name as away_name, at.logo as away_logo
+        FROM mls_fixtures f
+        JOIN mls_teams ht ON f.home_team_id = ht.id
+        JOIN mls_teams at ON f.away_team_id = at.id
+        WHERE (f.home_team_id = ? OR f.away_team_id = ?)
+          AND f.status = 'FT'
+        ORDER BY f.date_utc DESC
+        LIMIT 10
+    """, (team_id, team_id))
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+
+def _get_mls_head_to_head(team_a_id: int, team_b_id: int, limit: int = 10) -> list:
+    """Last N finished meetings between these two specific teams (either side home),
+    newest first, across every season stored in mls_fixtures — not just the current
+    one, since two teams often only meet once or twice a season (see
+    scripts/backfill_mls_history.py, which backfilled 2023-2025 for exactly this)."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT f.*, ht.name as home_name, ht.logo as home_logo,
+               at.name as away_name, at.logo as away_logo
+        FROM mls_fixtures f
+        JOIN mls_teams ht ON f.home_team_id = ht.id
+        JOIN mls_teams at ON f.away_team_id = at.id
+        WHERE ((f.home_team_id = ? AND f.away_team_id = ?)
+            OR (f.home_team_id = ? AND f.away_team_id = ?))
+          AND f.status = 'FT'
+        ORDER BY f.date_utc DESC
+        LIMIT ?
+    """, (team_a_id, team_b_id, team_b_id, team_a_id, limit))
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+
+def _record_from_rows(rows: list, is_home_col: str) -> dict:
+    """W/D/L + points from a list of finished mls_fixtures rows, from the
+    perspective of whichever side `is_home_col` says this team played."""
+    won = drawn = lost = 0
+    for r in rows:
+        team_goals = r["home_score"] if is_home_col == "home" else r["away_score"]
+        opp_goals = r["away_score"] if is_home_col == "home" else r["home_score"]
+        if team_goals > opp_goals:
+            won += 1
+        elif team_goals == opp_goals:
+            drawn += 1
+        else:
+            lost += 1
+    return {"won": won, "drawn": drawn, "lost": lost, "played": won + drawn + lost, "points": won * 3 + drawn}
+
+
+def _get_mls_team_record(team_id: int, season: int) -> dict:
+    """Overall/home/away W-D-L + points for a team, computed directly from
+    mls_fixtures (not mls_standings) so all three splits are guaranteed
+    internally consistent (home + away always sums to all) — scoped to the
+    fixture's own season so a mid-backfill history query never bleeds in."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT home_score, away_score FROM mls_fixtures
+        WHERE home_team_id = ? AND season = ? AND status = 'FT'
+    """, (team_id, season))
+    home_rows = cur.fetchall()
+    cur.execute("""
+        SELECT home_score, away_score FROM mls_fixtures
+        WHERE away_team_id = ? AND season = ? AND status = 'FT'
+    """, (team_id, season))
+    away_rows = cur.fetchall()
+    conn.close()
+
+    home_record = _record_from_rows(home_rows, "home")
+    away_record = _record_from_rows(away_rows, "away")
+    all_record = {
+        "won": home_record["won"] + away_record["won"],
+        "drawn": home_record["drawn"] + away_record["drawn"],
+        "lost": home_record["lost"] + away_record["lost"],
+        "played": home_record["played"] + away_record["played"],
+        "points": home_record["points"] + away_record["points"],
+    }
+    return {"all": all_record, "home": home_record, "away": away_record}
 
 
 def _get_mls_team_season_stats(team_name: str) -> Optional[dict]:

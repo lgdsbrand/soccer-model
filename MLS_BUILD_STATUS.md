@@ -1,6 +1,19 @@
-# MLS Section — Build Status (checkpoint: Day 4, Odds API verified live)
+# MLS Section — Build Status (checkpoint: Day 4, committed locally, demo-ready on desktop/localhost)
 
 Plan file: `C:\Users\denis\.claude\plans\i-m-adding-an-mls-iterative-volcano.md`
+
+## Safe to demo to Tyler right now (2026-07-20)
+
+**Solid — desktop, localhost:3000 only:**
+- MLS Dashboard, Matches list, Standings — real ESPN data, confirmed clean via live screenshots.
+- MLS match detail pages — verified correct at the data level (team names, odds-derived predictions, season stats, goals/game, AI analysis/key players/style-of-play/lineups all generating correctly). Not re-screenshotted this session (Playwright tooling error) — do a quick manual look before screenshotting for Tyler.
+- World Cup side — regression-tested, unaffected.
+
+**Not ready — don't show:**
+- Mobile/responsive view (never checked — desktop screenshots only).
+- The "no odds posted yet" empty state for far-future fixtures (untested).
+- The deployed Render site — nothing pushed/deployed yet, still running old pre-MLS code, no `ODDS_API_KEY` configured there. Only `localhost:3000` is current.
+- Flag to Tyler as by-design, not a bug: Attack Strength / xG / xGA don't show for MLS (no model for MLS yet — see item 9 below).
 
 ## Done
 
@@ -44,7 +57,7 @@ Plan file: `C:\Users\denis\.claude\plans\i-m-adding-an-mls-iterative-volcano.md`
 3. Confirm the "odds not yet available" empty state (for far-future fixtures with no posted lines) looks right, not broken.
 4. Add `ODDS_API_KEY` to `render.yaml` env list + Render dashboard secret (still open — production deploy hasn't happened yet).
 5. Final end-to-end smoke test against the deployed site.
-6. Nothing has been committed to git yet — still sitting as local working-tree changes.
+6. ~~Nothing has been committed to git yet~~ — **done 2026-07-20**, commit `b62693c` ("Add MLS section: fixtures, standings, odds-derived predictions"). Not pushed to origin yet.
 
 ## Open questions for you
 - Separately: want me to look at fixing the suspended API-Football account (also affects WC last-5 stats), or leave it since MLS no longer depends on it?

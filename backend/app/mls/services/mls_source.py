@@ -71,13 +71,20 @@ def _parse_date(date_str: str) -> Optional[float]:
         return None
 
 
-async def fetch_and_store_teams_and_fixtures() -> int:
+async def fetch_and_store_teams_and_fixtures(season: Optional[int] = None) -> int:
     """
     Fetch the full MLS scoreboard (ESPN returns whatever window it considers
     "current" by default — this call widens it across the season with an
     explicit dates range) and upsert into mls_teams/mls_fixtures.
+
+    `season` defaults to the current MLS season (settings.mls_season) but can
+    be overridden to pull a prior year — see scripts/backfill_mls_history.py,
+    which uses this to backfill history for the head-to-head feature. Safe to
+    call for any season without disturbing others: ESPN event IDs are globally
+    unique (never reused across years), so each season's rows insert/update
+    independently of whatever's already stored for other seasons.
     """
-    season = settings.mls_season
+    season = season or settings.mls_season
     data = await _get(
         settings.espn_soccer_base,
         f"/{settings.mls_espn_league_slug}/scoreboard",

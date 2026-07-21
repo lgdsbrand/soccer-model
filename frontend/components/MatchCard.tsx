@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import type { Fixture, FixtureDetail, Prediction, TeamSeasonStats, KeyPlayer, LineupEntry, MatchStat } from "@/lib/api";
+import type { Fixture, FixtureDetail, Prediction, TeamSeasonStats, KeyPlayer, LineupEntry, MatchStat, TeamRecord, RecordSplit } from "@/lib/api";
 import { formatDate, formatTime, getStatusLabel } from "@/lib/api";
 
 interface Props {
@@ -8,13 +8,14 @@ interface Props {
   compact?: boolean;
   basePath?: string;
   showRecommendedPlay?: boolean;
+  showXg?: boolean;
 }
 
 const KNOCKOUT_ROUNDS = new Set([
   "Round of 32", "Round of 16", "Quarter-finals", "Semi-finals", "Final", "3rd Place",
 ]);
 
-export default function MatchCard({ fixture, compact, basePath = "/matches", showRecommendedPlay = true }: Props) {
+export default function MatchCard({ fixture, compact, basePath = "/matches", showRecommendedPlay = true, showXg = true }: Props) {
   const status = getStatusLabel(fixture.status);
   const pred = fixture.prediction;
   const isLive = ["1H", "2H", "HT", "ET", "P"].includes(fixture.status);
@@ -191,6 +192,7 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
               awayXga={fixture.away_xga_rating}
               homeTeamStats={fixture.home_team_stats}
               awayTeamStats={fixture.away_team_stats}
+              showXg={showXg}
             />
           )}
 
@@ -198,10 +200,30 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
           {(fixture.home_last5?.length > 0 || fixture.away_last5?.length > 0) && (
             <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)" }}>
               <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: "12px" }}>
-                <FormRow label={`${fixture.home_name} Last 5`} results={fixture.home_last5 ?? []} teamId={fixture.home_team_id} />
-                <FormRow label={`${fixture.away_name} Last 5`} results={fixture.away_last5 ?? []} teamId={fixture.away_team_id} />
+                <FormRow teamName={fixture.home_name} results={fixture.home_last5 ?? []} teamId={fixture.home_team_id} />
+                <FormRow teamName={fixture.away_name} results={fixture.away_last5 ?? []} teamId={fixture.away_team_id} />
               </div>
             </div>
+          )}
+
+          {/* Head to Head — MLS only; fixture.head_to_head is undefined for WC */}
+          {fixture.head_to_head && fixture.head_to_head.length > 0 && (
+            <HeadToHeadSection
+              results={fixture.head_to_head}
+              homeId={fixture.home_team_id}
+              homeName={fixture.home_name}
+              awayName={fixture.away_name}
+            />
+          )}
+
+          {/* Team Records — MLS only; fixture.home_team_record/away_team_record undefined for WC */}
+          {fixture.home_team_record && fixture.away_team_record && (
+            <TeamRecordsSection
+              homeName={fixture.home_name}
+              awayName={fixture.away_name}
+              homeRecord={fixture.home_team_record}
+              awayRecord={fixture.away_team_record}
+            />
           )}
 
           {/* Match Stats (for finished matches) */}
@@ -340,18 +362,22 @@ function StatChip({ label, value, color }: { label: string; value: string; color
   );
 }
 
-function FormRow({ label, results, teamId }: { label: string; results: any[]; teamId: number }) {
+function FormRow({ teamName, results, teamId }: { teamName: string; results: any[]; teamId: number }) {
   const colors = { W: "#00d084", D: "#f5a623", L: "#ff4757" };
+  const shown = results.slice(0, 10);
   return (
     <div>
-      <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "8px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>{label}</div>
+      <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "8px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>{teamName} Last {shown.length}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-        {results.slice(0, 5).map((r, i) => {
+        {shown.map((r, i) => {
           const isHome = r.home_team_id === teamId;
           const gs = isHome ? r.home_score : r.away_score;
           const gc = isHome ? r.away_score : r.home_score;
           const outcome = gs > gc ? "W" : gs === gc ? "D" : "L";
           const color = colors[outcome as keyof typeof colors];
+          const dateStr = r.date_utc
+            ? new Date(r.date_utc * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+            : "";
           return (
             <div key={i} style={{
               display: "flex", alignItems: "center", gap: "6px",
@@ -359,6 +385,9 @@ function FormRow({ label, results, teamId }: { label: string; results: any[]; te
               backgroundColor: "rgba(255,255,255,0.03)",
               border: `1px solid ${color}22`,
             }}>
+              {/* Date */}
+              <span style={{ fontSize: "9px", color: "var(--text-muted)", flexShrink: 0, minWidth: "32px" }}>{dateStr}</span>
+
               {/* W/D/L badge */}
               <span style={{
                 width: "16px", height: "16px", borderRadius: "3px", flexShrink: 0,
@@ -391,48 +420,176 @@ function FormRow({ label, results, teamId }: { label: string; results: any[]; te
   );
 }
 
+function HeadToHeadSection({ results, homeId, homeName, awayName }: {
+  results: any[]; homeId: number; homeName: string; awayName: string;
+}) {
+  // Colors identify the two *current* teams (green = this fixture's home team,
+  // purple = away), consistently across every row regardless of which side
+  // they played on in that historical meeting — unlike FormRow's W/D/L colors,
+  // which judge one team's own results, this section compares two fixed teams
+  // against each other, so it borrows the green/purple home-vs-away language
+  // used elsewhere on the card (WinProbBar, Important Stats) instead.
+  let homeWins = 0, awayWins = 0, draws = 0;
+  for (const r of results) {
+    const homeSideIsHomeTeam = r.home_team_id === homeId;
+    const refGoals = homeSideIsHomeTeam ? r.home_score : r.away_score;
+    const oppGoals = homeSideIsHomeTeam ? r.away_score : r.home_score;
+    if (refGoals > oppGoals) homeWins++;
+    else if (refGoals === oppGoals) draws++;
+    else awayWins++;
+  }
+
+  return (
+    <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)" }}>
+      <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px", fontWeight: 600 }}>HEAD TO HEAD</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "14px" }}>
+        <StatChip label={`${homeName} Wins`} value={String(homeWins)} color="var(--accent-green)" />
+        <StatChip label="Draws" value={String(draws)} color="var(--accent-gold)" />
+        <StatChip label={`${awayName} Wins`} value={String(awayWins)} color="var(--accent-purple)" />
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+        {results.map((r, i) => {
+          const homeSideColor = r.home_team_id === homeId ? "var(--accent-green)" : "var(--accent-purple)";
+          const awaySideColor = r.away_team_id === homeId ? "var(--accent-green)" : "var(--accent-purple)";
+          const homeSideWon = (r.home_score ?? 0) > (r.away_score ?? 0);
+          const awaySideWon = (r.away_score ?? 0) > (r.home_score ?? 0);
+          const dateStr = r.date_utc
+            ? new Date(r.date_utc * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+            : "";
+          return (
+            <div key={i} style={{
+              display: "flex", alignItems: "center", gap: "6px",
+              padding: "6px 8px", borderRadius: "6px",
+              backgroundColor: "rgba(255,255,255,0.03)",
+              border: "1px solid var(--border)",
+            }}>
+              {/* Date */}
+              <span style={{ fontSize: "9px", color: "var(--text-muted)", flexShrink: 0, minWidth: "62px" }}>{dateStr}</span>
+
+              {/* Home side (whichever team actually hosted that meeting) */}
+              <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0, justifyContent: "flex-end" }}>
+                <span style={{ fontSize: "11px", color: homeSideColor, fontWeight: homeSideWon ? 800 : 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.home_name ?? "?"}</span>
+                {r.home_logo && <img src={r.home_logo} alt="" style={{ width: 16, height: 16, objectFit: "contain", flexShrink: 0 }} />}
+              </div>
+
+              {/* Score */}
+              <span style={{ fontSize: "13px", fontWeight: 800, color: "var(--text-primary)", flexShrink: 0, minWidth: "36px", textAlign: "center", fontVariantNumeric: "tabular-nums" }}>
+                {r.home_score ?? "?"}-{r.away_score ?? "?"}
+              </span>
+
+              {/* Away side */}
+              <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
+                {r.away_logo && <img src={r.away_logo} alt="" style={{ width: 16, height: 16, objectFit: "contain", flexShrink: 0 }} />}
+                <span style={{ fontSize: "11px", color: awaySideColor, fontWeight: awaySideWon ? 800 : 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.away_name ?? "?"}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function TeamRecordsSection({ homeName, awayName, homeRecord, awayRecord }: {
+  homeName: string; awayName: string; homeRecord: TeamRecord; awayRecord: TeamRecord;
+}) {
+  const fmt = (r: RecordSplit) => `${r.won}-${r.drawn}-${r.lost}`;
+
+  const recordRows = [
+    { label: "Record (All)", homeText: fmt(homeRecord.all), awayText: fmt(awayRecord.all) },
+    { label: "Record (Home)", homeText: fmt(homeRecord.home), awayText: fmt(awayRecord.home) },
+    { label: "Record (Away)", homeText: fmt(homeRecord.away), awayText: fmt(awayRecord.away) },
+  ];
+
+  const pointsRows = [
+    { label: "Points (All)", homeVal: homeRecord.all.points, awayVal: awayRecord.all.points },
+    { label: "Points (Home)", homeVal: homeRecord.home.points, awayVal: awayRecord.home.points },
+    { label: "Points (Away)", homeVal: homeRecord.away.points, awayVal: awayRecord.away.points },
+  ];
+
+  return (
+    <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)" }}>
+      <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px", fontWeight: 600 }}>TEAM RECORDS</div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
+        <span style={{ fontSize: "12px", fontWeight: 700 }}>{homeName}</span>
+        <span style={{ fontSize: "12px", fontWeight: 700 }}>{awayName}</span>
+      </div>
+      {recordRows.map(({ label, homeText, awayText }) => (
+        <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+          <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--accent-green)" }}>{homeText}</span>
+          <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{label}</span>
+          <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--accent-purple)" }}>{awayText}</span>
+        </div>
+      ))}
+      {pointsRows.map(({ label, homeVal, awayVal }) => {
+        const total = homeVal + awayVal;
+        const hPct = total > 0 ? (homeVal / total) * 100 : 50;
+        const aPct = 100 - hPct;
+        return (
+          <div key={label} style={{ marginBottom: "10px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+              <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--accent-green)" }}>{homeVal}</span>
+              <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{label}</span>
+              <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--accent-purple)" }}>{awayVal}</span>
+            </div>
+            <div style={{ height: "6px", borderRadius: "3px", overflow: "hidden", display: "flex" }}>
+              <div style={{ width: `${hPct}%`, backgroundColor: "var(--accent-green)" }} />
+              <div style={{ width: `${aPct}%`, backgroundColor: "var(--accent-purple)" }} />
+            </div>
+          </div>
+        );
+      })}
+      <div style={{ marginTop: "10px", fontSize: "11px", color: "var(--text-muted)", textAlign: "center" }}>
+        Record shown as Won-Drawn-Lost
+      </div>
+    </div>
+  );
+}
+
 function AttackRatingSection({
   homeName, awayName, homeAttack, awayAttack,
   homeGoals, awayGoals, homeXg, awayXg,
   homeGoalsAllowed, awayGoalsAllowed, homeXga, awayXga,
-  homeTeamStats, awayTeamStats,
+  homeTeamStats, awayTeamStats, showXg = true,
 }: {
   homeName: string; awayName: string;
   homeAttack?: number; awayAttack?: number;
   homeGoals?: number; awayGoals?: number; homeXg?: number; awayXg?: number;
   homeGoalsAllowed?: number; awayGoalsAllowed?: number; homeXga?: number; awayXga?: number;
   homeTeamStats?: TeamSeasonStats; awayTeamStats?: TeamSeasonStats;
+  showXg?: boolean;
 }) {
   const fmt = (v?: number) => v != null ? v.toFixed(2) : "—";
 
   const rows = [
     {
-      label: "Attack Strength", homeVal: homeAttack, awayVal: awayAttack, max: 100,
+      label: "Attack Strength", homeVal: homeAttack, awayVal: awayAttack,
       homeText: homeAttack ?? "—", awayText: awayAttack ?? "—",
     },
-    {
+    showXg ? {
       label: "Goals / xG", homeVal: homeGoals, awayVal: awayGoals,
-      max: Math.max(homeGoals || 0, awayGoals || 0, 1),
       homeText: `${fmt(homeGoals)} / ${fmt(homeXg)}`, awayText: `${fmt(awayGoals)} / ${fmt(awayXg)}`,
+    } : {
+      label: "Goals", homeVal: homeGoals, awayVal: awayGoals,
+      homeText: fmt(homeGoals), awayText: fmt(awayGoals),
     },
-    {
+    showXg ? {
       label: "Goals Allowed / xGA", homeVal: homeGoalsAllowed, awayVal: awayGoalsAllowed,
-      max: Math.max(homeGoalsAllowed || 0, awayGoalsAllowed || 0, 1),
       homeText: `${fmt(homeGoalsAllowed)} / ${fmt(homeXga)}`, awayText: `${fmt(awayGoalsAllowed)} / ${fmt(awayXga)}`,
+    } : {
+      label: "Goals Allowed", homeVal: homeGoalsAllowed, awayVal: awayGoalsAllowed,
+      homeText: fmt(homeGoalsAllowed), awayText: fmt(awayGoalsAllowed),
     },
     {
       label: "Corners per Game", homeVal: homeTeamStats?.corners, awayVal: awayTeamStats?.corners,
-      max: Math.max(homeTeamStats?.corners || 0, awayTeamStats?.corners || 0, 1),
       homeText: homeTeamStats?.corners ?? "—", awayText: awayTeamStats?.corners ?? "—",
     },
     {
       label: "Shots on Target per Game", homeVal: homeTeamStats?.shots, awayVal: awayTeamStats?.shots,
-      max: Math.max(homeTeamStats?.shots || 0, awayTeamStats?.shots || 0, 1),
       homeText: homeTeamStats?.shots ?? "—", awayText: awayTeamStats?.shots ?? "—",
     },
     {
       label: "Fouls per Game", homeVal: homeTeamStats?.fouls, awayVal: awayTeamStats?.fouls,
-      max: Math.max(homeTeamStats?.fouls || 0, awayTeamStats?.fouls || 0, 1),
       homeText: homeTeamStats?.fouls ?? "—", awayText: awayTeamStats?.fouls ?? "—",
     },
   ].filter(r => r.homeVal != null || r.awayVal != null);
@@ -448,23 +605,30 @@ function AttackRatingSection({
         <span style={{ fontSize: "12px", fontWeight: 700 }}>{homeName}</span>
         <span style={{ fontSize: "12px", fontWeight: 700 }}>{awayName}</span>
       </div>
-      {rows.map(({ label, homeVal, awayVal, max, homeText, awayText }) => (
-        <div key={label} style={{ marginBottom: "10px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-            <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--accent-green)" }}>{homeText}</span>
-            <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{label}</span>
-            <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--accent-purple)" }}>{awayText}</span>
-          </div>
-          <div style={{ height: "6px", borderRadius: "3px", overflow: "hidden", display: "flex", gap: "4px" }}>
-            <div style={{ flex: 1, display: "flex", justifyContent: "flex-end" }}>
-              <div style={{ width: `${((homeVal || 0) / max) * 100}%`, backgroundColor: "var(--accent-green)", borderRadius: "3px" }} />
+      {rows.map(({ label, homeVal, awayVal, homeText, awayText }) => {
+        // Single contiguous bar split proportionally between the two values
+        // (same approach as WinProbBar above), so the side with the bigger
+        // number visibly claims more of the bar — two independently
+        // max-scaled halves (the old approach) made both sides look
+        // nearly full whenever the two values were close, hiding which
+        // side was actually bigger.
+        const total = (homeVal || 0) + (awayVal || 0);
+        const hPct = total > 0 ? ((homeVal || 0) / total) * 100 : 50;
+        const aPct = 100 - hPct;
+        return (
+          <div key={label} style={{ marginBottom: "10px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+              <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--accent-green)" }}>{homeText}</span>
+              <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{label}</span>
+              <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--accent-purple)" }}>{awayText}</span>
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ width: `${((awayVal || 0) / max) * 100}%`, backgroundColor: "var(--accent-purple)", borderRadius: "3px" }} />
+            <div style={{ height: "6px", borderRadius: "3px", overflow: "hidden", display: "flex" }}>
+              <div style={{ width: `${hPct}%`, backgroundColor: "var(--accent-green)" }} />
+              <div style={{ width: `${aPct}%`, backgroundColor: "var(--accent-purple)" }} />
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
       {hasAttackStrength && (
         <div style={{ marginTop: "10px", fontSize: "11px", color: "var(--text-muted)", textAlign: "center" }}>
           Attack Strength on a 0-100 scale
@@ -603,7 +767,9 @@ function MatchStatsSection({ home, away, homeName, awayName }: {
       {rows.map(({ label, homeVal, awayVal, higherIsBetter }) => {
         const hNum = parseNum(homeVal);
         const aNum = parseNum(awayVal);
-        const max = Math.max(hNum, aNum, 1);
+        const total = hNum + aNum;
+        const hPct = total > 0 ? (hNum / total) * 100 : 50;
+        const aPct = 100 - hPct;
         const homeLeads = hNum > aNum;
         const awayLeads = aNum > hNum;
         const homeColor = higherIsBetter === undefined ? "var(--accent-green)"
@@ -617,13 +783,9 @@ function MatchStatsSection({ home, away, homeName, awayName }: {
               <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{label}</span>
               <span style={{ fontSize: "13px", fontWeight: 700, color: awayColor }}>{awayVal ?? "—"}</span>
             </div>
-            <div style={{ height: "5px", borderRadius: "3px", overflow: "hidden", display: "flex", gap: "3px" }}>
-              <div style={{ flex: 1, display: "flex", justifyContent: "flex-end" }}>
-                <div style={{ width: `${(hNum / max) * 100}%`, backgroundColor: "var(--accent-green)", borderRadius: "3px", opacity: 0.7 }} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ width: `${(aNum / max) * 100}%`, backgroundColor: "var(--accent-purple)", borderRadius: "3px", opacity: 0.7 }} />
-              </div>
+            <div style={{ height: "5px", borderRadius: "3px", overflow: "hidden", display: "flex" }}>
+              <div style={{ width: `${hPct}%`, backgroundColor: "var(--accent-green)", opacity: 0.7 }} />
+              <div style={{ width: `${aPct}%`, backgroundColor: "var(--accent-purple)", opacity: 0.7 }} />
             </div>
           </div>
         );

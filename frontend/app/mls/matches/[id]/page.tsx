@@ -21,7 +21,7 @@ export default async function MlsMatchDetailPage({ params }: { params: Promise<{
           ← Back to Matches
         </Link>
       </div>
-      <MatchCard fixture={fixture} basePath="/mls/matches" showRecommendedPlay={false} />
+      <MatchCard fixture={fixture} basePath="/mls/matches" showRecommendedPlay={false} showXg={false} />
     </div>
   );
 }
