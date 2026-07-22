@@ -134,6 +134,32 @@ body {
   .hero-banner-content { gap: 12px; }
 }
 
+.mls-standings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+/* Two conference tables side by side leaves ~160px each on a phone —
+   not enough for 10 columns even with the table's own horizontal
+   scroll, so stack them full-width instead below this breakpoint. */
+@media (max-width: 640px) {
+  .mls-standings-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* FixtureRow's win% column is the least essential piece of info in the
+   row (one tap away on the detail page) and competes directly with
+   team-name space on mobile, where MLS club names ("Sporting Kansas
+   City") are much longer than WC country names. Drop it below this
+   width so names get the room instead. */
+@media (max-width: 480px) {
+  .fixture-prob {
+    display: none;
+  }
+}
+
 .stat-bar {
   height: 6px;
   border-radius: 3px;

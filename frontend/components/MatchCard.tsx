@@ -55,7 +55,7 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
               {fixture.home_fifa_rank != null && <FifaRankBadge rank={fixture.home_fifa_rank} />}
             </div>
           )}
-          <div style={{ fontWeight: 700, fontSize: "16px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fixture.home_name}</div>
+          <div style={{ fontWeight: 700, fontSize: "16px" }}>{fixture.home_name}</div>
           {fixture.home_group && (
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>Group {fixture.home_group}</div>
           )}
@@ -85,7 +85,7 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
               {fixture.away_fifa_rank != null && <FifaRankBadge rank={fixture.away_fifa_rank} />}
             </div>
           )}
-          <div style={{ fontWeight: 700, fontSize: "16px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fixture.away_name}</div>
+          <div style={{ fontWeight: 700, fontSize: "16px" }}>{fixture.away_name}</div>
           {fixture.away_group && (
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>Group {fixture.away_group}</div>
           )}
@@ -398,7 +398,7 @@ function FormRow({ teamName, results, teamId }: { teamName: string; results: any
 
               {/* Home team */}
               <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0, justifyContent: "flex-end" }}>
-                <span style={{ fontSize: "11px", color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.home_name ?? "?"}</span>
+                <span style={{ fontSize: "11px", color: "var(--text-secondary)", textAlign: "right" }}>{r.home_name ?? "?"}</span>
                 {r.home_logo && <img src={r.home_logo} alt="" style={{ width: 16, height: 16, objectFit: "contain", flexShrink: 0 }} />}
               </div>
 
@@ -410,7 +410,7 @@ function FormRow({ teamName, results, teamId }: { teamName: string; results: any
               {/* Away team */}
               <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
                 {r.away_logo && <img src={r.away_logo} alt="" style={{ width: 16, height: 16, objectFit: "contain", flexShrink: 0 }} />}
-                <span style={{ fontSize: "11px", color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.away_name ?? "?"}</span>
+                <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{r.away_name ?? "?"}</span>
               </div>
             </div>
           );
@@ -468,7 +468,7 @@ function HeadToHeadSection({ results, homeId, homeName, awayName }: {
 
               {/* Home side (whichever team actually hosted that meeting) */}
               <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0, justifyContent: "flex-end" }}>
-                <span style={{ fontSize: "11px", color: homeSideColor, fontWeight: homeSideWon ? 800 : 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.home_name ?? "?"}</span>
+                <span style={{ fontSize: "11px", color: homeSideColor, fontWeight: homeSideWon ? 800 : 500, textAlign: "right" }}>{r.home_name ?? "?"}</span>
                 {r.home_logo && <img src={r.home_logo} alt="" style={{ width: 16, height: 16, objectFit: "contain", flexShrink: 0 }} />}
               </div>
 
@@ -480,7 +480,7 @@ function HeadToHeadSection({ results, homeId, homeName, awayName }: {
               {/* Away side */}
               <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
                 {r.away_logo && <img src={r.away_logo} alt="" style={{ width: 16, height: 16, objectFit: "contain", flexShrink: 0 }} />}
-                <span style={{ fontSize: "11px", color: awaySideColor, fontWeight: awaySideWon ? 800 : 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.away_name ?? "?"}</span>
+                <span style={{ fontSize: "11px", color: awaySideColor, fontWeight: awaySideWon ? 800 : 500 }}>{r.away_name ?? "?"}</span>
               </div>
             </div>
           );

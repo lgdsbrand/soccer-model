@@ -29,7 +29,7 @@ export default async function MlsStandingsPage() {
           <div style={{ color: "var(--text-muted)", fontSize: "14px" }}>Standings loading — check backend connection</div>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "20px" }}>
+        <div className="mls-standings-grid">
           {sortedConferences.map(conference => (
             <StandingsTable key={conference} conference={conference} standings={conferences[conference]} />
           ))}
