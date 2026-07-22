@@ -1,6 +1,13 @@
 import { apiFetch } from "./api";
 import type { Fixture, FixtureDetail } from "./api";
 
+// Must match backend/app/config.py's `mls_season` — `mls_fixtures` also holds
+// 3 backfilled historical seasons (2023-2025, for head-to-head), so callers
+// that want "current" fixtures need to scope to this season explicitly
+// rather than relying on ORDER BY date_utc ASC LIMIT n, which otherwise
+// returns 2023 season openers first.
+export const MLS_CURRENT_SEASON = 2026;
+
 export const mlsApi = {
   fixtures: (params?: string) => apiFetch<Fixture[]>(`/mls/fixtures/${params ? "?" + params : ""}`),
   fixture: (id: number) => apiFetch<FixtureDetail>(`/mls/fixtures/${id}`),

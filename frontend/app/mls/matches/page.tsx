@@ -1,4 +1,4 @@
-import { mlsApi } from "@/lib/mlsApi";
+import { mlsApi, MLS_CURRENT_SEASON } from "@/lib/mlsApi";
 import type { Fixture } from "@/lib/api";
 import FixtureRow from "@/components/FixtureRow";
 import MatchDayNav from "@/components/mls/MatchDayNav";
@@ -24,7 +24,7 @@ function toEasternDateStr(ts: number): string {
 export default async function MlsMatchesPage() {
   let fixtures: Fixture[] = [];
   try {
-    fixtures = await mlsApi.fixtures("status=NS&limit=300");
+    fixtures = await mlsApi.fixtures(`status=NS&season=${MLS_CURRENT_SEASON}&limit=300`);
   } catch {
     fixtures = [];
   }

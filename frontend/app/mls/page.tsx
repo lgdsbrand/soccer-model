@@ -1,4 +1,4 @@
-import { mlsApi } from "@/lib/mlsApi";
+import { mlsApi, MLS_CURRENT_SEASON } from "@/lib/mlsApi";
 import type { MlsStanding } from "@/lib/mlsApi";
 import type { Fixture } from "@/lib/api";
 import Link from "next/link";
@@ -13,7 +13,7 @@ function toEasternDateStr(ts: number): string {
 
 export default async function MlsHomePage() {
   const [allFixtures, conferences] = await Promise.all([
-    mlsApi.fixtures("limit=300").catch(() => [] as Fixture[]),
+    mlsApi.fixtures(`season=${MLS_CURRENT_SEASON}&limit=300`).catch(() => [] as Fixture[]),
     mlsApi.standings().catch(() => ({} as Record<string, MlsStanding[]>)),
   ]);
 

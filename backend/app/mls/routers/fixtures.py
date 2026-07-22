@@ -9,8 +9,16 @@ router = APIRouter(prefix="/mls/fixtures", tags=["mls-fixtures"])
 
 
 @router.get("/", response_model=List[dict])
-async def get_mls_fixtures(status: Optional[str] = None, limit: int = 50):
-    """Get MLS fixtures, optionally filtered by status."""
+async def get_mls_fixtures(status: Optional[str] = None, season: Optional[int] = None, limit: int = 50):
+    """Get MLS fixtures, optionally filtered by status and/or season.
+
+    `season` matters now that `mls_fixtures` holds 4 backfilled seasons
+    (2023-2025 for head-to-head, plus the live 2026 season): with no
+    filter, `ORDER BY date_utc ASC LIMIT n` returns the OLDEST n rows
+    across all of them, i.e. 2023 season openers — callers that want
+    "current" data (dashboard, schedule) need to scope to one season
+    explicitly rather than relying on limit alone.
+    """
     conn = get_connection()
     cur = conn.cursor()
 
@@ -26,6 +34,9 @@ async def get_mls_fixtures(status: Optional[str] = None, limit: int = 50):
     if status:
         query += " AND f.status = ?"
         params.append(status)
+    if season:
+        query += " AND f.season = ?"
+        params.append(season)
     query += " ORDER BY f.date_utc ASC LIMIT ?"
     params.append(limit)
 
