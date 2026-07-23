@@ -199,7 +199,7 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
           {/* Last 5 Form */}
           {(fixture.home_last5?.length > 0 || fixture.away_last5?.length > 0) && (
             <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: "12px" }}>
+              <div className="last5-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: "12px" }}>
                 <FormRow teamName={fixture.home_name} results={fixture.home_last5 ?? []} teamId={fixture.home_team_id} />
                 <FormRow teamName={fixture.away_name} results={fixture.away_last5 ?? []} teamId={fixture.away_team_id} />
               </div>
@@ -397,7 +397,7 @@ function FormRow({ teamName, results, teamId }: { teamName: string; results: any
               }}>{outcome}</span>
 
               {/* Home team */}
-              <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0, justifyContent: "flex-end" }}>
+              <div className="form-team" style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0, justifyContent: "flex-end" }}>
                 <span style={{ fontSize: "11px", color: "var(--text-secondary)", textAlign: "right" }}>{r.home_name ?? "?"}</span>
                 {r.home_logo && <img src={r.home_logo} alt="" style={{ width: 16, height: 16, objectFit: "contain", flexShrink: 0 }} />}
               </div>
@@ -408,7 +408,7 @@ function FormRow({ teamName, results, teamId }: { teamName: string; results: any
               </span>
 
               {/* Away team */}
-              <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
+              <div className="form-team" style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
                 {r.away_logo && <img src={r.away_logo} alt="" style={{ width: 16, height: 16, objectFit: "contain", flexShrink: 0 }} />}
                 <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{r.away_name ?? "?"}</span>
               </div>
@@ -467,7 +467,7 @@ function HeadToHeadSection({ results, homeId, homeName, awayName }: {
               <span style={{ fontSize: "9px", color: "var(--text-muted)", flexShrink: 0, minWidth: "62px" }}>{dateStr}</span>
 
               {/* Home side (whichever team actually hosted that meeting) */}
-              <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0, justifyContent: "flex-end" }}>
+              <div className="form-team" style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0, justifyContent: "flex-end" }}>
                 <span style={{ fontSize: "11px", color: homeSideColor, fontWeight: homeSideWon ? 800 : 500, textAlign: "right" }}>{r.home_name ?? "?"}</span>
                 {r.home_logo && <img src={r.home_logo} alt="" style={{ width: 16, height: 16, objectFit: "contain", flexShrink: 0 }} />}
               </div>
@@ -478,7 +478,7 @@ function HeadToHeadSection({ results, homeId, homeName, awayName }: {
               </span>
 
               {/* Away side */}
-              <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
+              <div className="form-team" style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
                 {r.away_logo && <img src={r.away_logo} alt="" style={{ width: 16, height: 16, objectFit: "contain", flexShrink: 0 }} />}
                 <span style={{ fontSize: "11px", color: awaySideColor, fontWeight: awaySideWon ? 800 : 500 }}>{r.away_name ?? "?"}</span>
               </div>
