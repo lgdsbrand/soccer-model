@@ -31,7 +31,7 @@ export default function FixtureRow({ fixture, basePath = "/matches" }: { fixture
         </div>
 
         {/* Home */}
-        <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "8px", justifyContent: "flex-end" }}>
+        <div className="fixture-home" style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "8px", justifyContent: "flex-end" }}>
           <span style={{ fontSize: "14px", fontWeight: 600, textAlign: "right" }}>{fixture.home_name}</span>
           {fixture.home_logo && <img src={fixture.home_logo} alt="" style={{ width: "24px", height: "24px", objectFit: "contain", flexShrink: 0 }} />}
         </div>
@@ -48,7 +48,7 @@ export default function FixtureRow({ fixture, basePath = "/matches" }: { fixture
         </div>
 
         {/* Away */}
-        <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+        <div className="fixture-away" style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "8px" }}>
           {fixture.away_logo && <img src={fixture.away_logo} alt="" style={{ width: "24px", height: "24px", objectFit: "contain", flexShrink: 0 }} />}
           <span style={{ fontSize: "14px", fontWeight: 600 }}>{fixture.away_name}</span>
         </div>

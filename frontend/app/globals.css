@@ -160,6 +160,36 @@ body {
   }
 }
 
+/* FixtureRow's status/time is a fixed-width column beside the team names
+   on desktop, but on narrow phones the team-name flex columns get squeezed
+   so thin that a single long word ("Philadelphia", "Bulls") can't wrap and
+   overflows past its own box edge, visually landing on top of the
+   status/time text next to it. Stack status above the team row instead of
+   beside it, and clip names with an ellipsis so they can never overflow
+   their column. Uses !important because the row's flex layout is set via
+   inline styles (which normal stylesheet rules can't override). */
+@media (max-width: 480px) {
+  .fixture-row {
+    flex-wrap: wrap;
+  }
+  .fixture-status {
+    width: 100% !important;
+    text-align: left !important;
+    margin-bottom: 6px;
+  }
+  .fixture-status > div {
+    justify-content: flex-start !important;
+  }
+  .fixture-home span,
+  .fixture-away span {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
 .stat-bar {
   height: 6px;
   border-radius: 3px;
