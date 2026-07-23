@@ -1,8 +1,8 @@
-# MLS Section — Build Status (checkpoint: Day 6, mobile responsive pass done, committed locally, not pushed)
+# MLS Section — Build Status (checkpoint: Day 7, client mobile feedback fixed + O1.5 odds gap fixed, all pushed to origin)
 
 Plan file: `C:\Users\denis\.claude\plans\i-m-adding-an-mls-iterative-volcano.md`
 
-## Safe to demo to Tyler right now (2026-07-22)
+## Safe to demo to Tyler right now (2026-07-23)
 
 **Solid — desktop, localhost:3000 only:**
 - MLS Dashboard, Matches list, Standings — real ESPN data, confirmed clean via live screenshots.
@@ -11,6 +11,8 @@ Plan file: `C:\Users\denis\.claude\plans\i-m-adding-an-mls-iterative-volcano.md`
 - World Cup side — regression-tested after every change this session, unaffected.
 
 - **Mobile is now checked and fixed** (see "Day 6" below) — verified live at 375px width via Playwright (temporarily installed for this session only, not a project dependency) on MLS dashboard, matches, standings, match detail, and WC dashboard/matches/match detail for regression. Zero horizontal overflow, zero console errors anywhere.
+- **Real client mobile bugs from Tyler's own phone screenshots, found and fixed** (see "Day 7" below) — the Day 6 pass above was thorough but synthetic (Playwright at fixed breakpoints); Tyler's actual screenshots caught two real layout bugs Day 6 missed: schedule-row status/time text overlapping team names, and Last-10/Head-to-Head rows wrapping so badly they became unreadable and misaligned. Both fixed and verified live, pushed to origin.
+- **O1.5/O2.5/O3.5 goals odds now all available for MLS** (see "Day 7" below) — Tyler had real evidence O1.5 lines exist; turned out to be a missing market (`alternate_totals`), not a missing region. All three lines now fetched and shown together per match instead of the old "MLS only ever gets one of O2.5/O3.5, never O1.5" limitation.
 
 **Not ready — don't show:**
 - The "no odds posted yet" empty state for far-future fixtures (untested).
@@ -81,16 +83,35 @@ All of the above verified live via Playwright screenshots at 375px (iPhone-width
 - Only checked the pages that exist today (dashboard, matches list, standings, match detail) at 3 breakpoints. Didn't check the "no odds posted yet" empty state (still genuinely untested — no far-future fixture with missing odds was available to load).
 - Touch-target sizing (are buttons/links big enough to tap comfortably) wasn't specifically audited — only text legibility and overflow.
 
+### Day 7 (2026-07-23) — Tyler's real-phone feedback: 2 mobile bugs + the O1.5 odds gap
+
+Working from Tyler's own screenshots this time (`MLS_problems/Tyler feedback/`), not synthetic breakpoint testing — caught real bugs Day 6's Playwright pass missed, plus resolved a client-reported data question. All three items independently verified live (backend + frontend dev servers, real DB, real Odds API key) and pushed to `origin/main` — nothing left uncommitted.
+
+1. **Schedule row: status/time overlapping team names on mobile** (`FixtureRow.tsx`, used by both MLS and WC schedule lists). Root cause: the status/time column is a fixed ~78px flex item beside team-name columns that had no overflow handling — on narrow phones those name columns get squeezed to ~44px, too narrow for a single word ("Philadelphia", "Bulls") to wrap, so it overflowed past its own box edge and landed visually on top of the status/time text. Fixed below 480px: status/time now stacks as its own full-width line above the team row instead of beside it, and names clip with an ellipsis instead of overflowing. Desktop/tablet unchanged (verified). Committed `055b28d`.
+2. **Last-10 and Head-to-Head rows wrapping badly, and drifting out of alignment** (`MatchCard.tsx`'s `FormRow`/`HeadToHeadSection`). `FormRow` splits home/away into a 2-column CSS grid — on mobile that halves an already-narrow card to ~150px per column, so team names wrapped 3-4 lines deep; worse, since the two columns are independent grid items, uneven wrap heights made the two team's row lists drift out of sync with each other by the 10th row. `HeadToHeadSection` had the same unbounded wrapping in its single-column rows. Fixed below 480px: Last-10 columns now stack full-width instead of side-by-side, and both sections clip names with an ellipsis (same treatment as fix #1) so a row is always exactly one line. Desktop (2-column, no truncation) verified unchanged. Committed `b8866b5`.
+   - Debugging note for next time: `getBoundingClientRect()` in this dev environment returns values at exactly **3x** the actual rendered screenshot pixel coordinates (a display-scaling quirk, consistent with `browser_resize`'s requested-vs-actual viewport mismatch already known from fix #1). Threw off the first couple of before/after screenshot crops until caught — divide JS-measured Y/X by 3 to map to screenshot pixels in this environment.
+3. **O1.5 goals odds investigation + fix** — Tyler had real evidence O1.5 lines exist for MLS somewhere, contradicting Day 1's finding that no MLS book quotes 1.5 (see Day 1 item 2 above — **that finding is now superseded**, not wrong exactly, just incomplete). Checked live against the real API: not a region problem (tried `eu`/`uk`/`au` too, no 1.5 anywhere in the bulk `totals` market in any region). Root cause: the bulk `totals` market only ever carries each bookmaker's single "main" line (2.5-3.75ish) — 1.5 isn't a main line anyone quotes for MLS, which is why Day 1's check (correctly) never found it there. But 1.5 — and full 2.5/3.5 coverage, not just whichever one happened to be a book's main line — lives in a separate market, `alternate_totals`, same per-event-only restriction as btts (422s on the bulk endpoint). Verified live: betmgm/fanduel/betrivers each quote 1.5, 2.5, *and* 3.5 via `alternate_totals` on **every** fixture in a full slate (15/15) — full coverage, not partial.
+   - Implemented the same way btts was: one extra per-event call (`_fetch_alternate_totals_bookmakers`, mirrors `_fetch_btts_bookmakers`), merged into the existing devig logic, stored as new `over_1_5_pct` column (`mls_match_probs`, with an `ALTER TABLE` migration for the existing DB — same try/except pattern already used elsewhere in `database.py`). This also incidentally fixes Day 1 item 3 (O2.5/O3.5 used to be mutually exclusive per fixture) — since `alternate_totals` reliably has all three lines, fixtures now get true O1.5+O2.5+O3.5 together instead of at most one of the last two.
+   - `MatchCard.tsx`'s stat-chip row (previously a hardcoded ternary assuming "WC has O1.5, MLS has O3.5, never both") replaced with a small array built from whichever of BTTS/O1.5/O2.5/O3.5/xG are actually present, grid sized to however many chips that turns out to be (verified both the 3-chip old-data case and the new 4-chip case render cleanly, desktop and mobile).
+   - Ran the real fetch end-to-end against the live API and confirmed via rendered UI: all 15 genuinely-upcoming fixtures show all three lines. Note: the 15 *original* fixtures from earlier in the week (761665-679) still show old-style single-line data — not a bug, their real-world kickoff has already passed so the live Odds API no longer quotes them at all, meaning no fetch (old or new code) touches those specific rows anymore. Worth a separate look if stale past-kickoff `NS` rows ever matter (they currently just sit there showing last-known odds forever).
+   - Committed `0585cba`. Deliberately left `wc2026.db` out of all three Day 7 commits (schema migration runs automatically via `init_mls_db()` on startup; real data repopulates on the next scheduled refresh) — consistent with how this session handled incidental DB writes throughout.
+4. **CF Montréal "encoding bug" — investigated, turned out not to be a real bug.** Tyler/earlier-in-session reports of "CF Montr�al" in the DB traced to a **terminal display artifact** (this Windows console's codepage can't render `é`), not actual data corruption — confirmed by dumping the raw UTF-8 bytes directly (`0xc3 0xa9`, the correct encoding for `é`) and checking `mls_source.py`'s ESPN ingest path (plain `httpx.json()`, solid UTF-8 handling) and FastAPI's default JSON response (UTF-8, `ensure_ascii=False`). No code change made — nothing to fix. Flagged in case the client is actually seeing broken characters somewhere real (a live page, a CSV export) rather than repeating back what appeared in this chat.
+
+**All three of today's code fixes pushed to `origin/main`** (`055b28d`, `b8866b5`, `0585cba` — branch is even with origin as of end of session, nothing outstanding).
+
 ## Left to do
 
 1. ~~Finish verifying `odds_api.py` against a real Odds API key~~ — **done 2026-07-20**. Real key in `backend/.env`, live-verified, 3 real bugs found and fixed (see above). Local dev DB (`wc2026.db`) migrated in place (`over_1_5_pct` → `over_3_5_pct`, 0 rows lost — table was still empty pre-fix).
-2. ~~Mobile/responsive pass on the new MLS pages~~ — **done 2026-07-22** (Day 6). 3 real bugs found and fixed (auto-scroll hiding the nav under the hamburger button, standings silently dropping 7 of 10 columns, unreadable team-name truncation) — see Day 6 above. Not committed yet.
-3. Confirm the "odds not yet available" empty state (for far-future fixtures with no posted lines) looks right, not broken.
+2. ~~Mobile/responsive pass on the new MLS pages~~ — **done 2026-07-22** (Day 6), plus real-phone follow-up fixes **done 2026-07-23** (Day 7, items 1-2) from Tyler's actual screenshots. All committed and pushed.
+3. Confirm the "odds not yet available" empty state (for far-future fixtures with no posted lines) looks right, not broken. **Still open.**
 4. Add `ODDS_API_KEY` to `render.yaml` env list + Render dashboard secret (still open — production deploy hasn't happened yet).
 5. Final end-to-end smoke test against the deployed site.
-6. ~~Nothing has been committed to git yet~~ — **done 2026-07-20**, commit `b62693c` ("Add MLS section: fixtures, standings, odds-derived predictions"). **Day 5 work also now committed** — `330e05d` ("Add MLS last-10 form, head-to-head, and team records to match cards"), 2026-07-22. Branch is 2 commits ahead of `origin/main`; **still not pushed**.
+6. ~~Nothing has been committed to git yet~~ / ~~branch not pushed~~ — **done**. `b62693c`, `330e05d` (2026-07-22), then `055b28d`, `b8866b5`, `0585cba` (2026-07-23, Day 7) — **all pushed to `origin/main`**, branch even with origin as of end of Day 7.
 7. Backfilling further back than 2023 for head-to-head (currently 2023-2026 only) — only worth doing if a specific pair still looks thin.
+8. ~~O1.5 goals odds missing for MLS~~ — **done 2026-07-23** (Day 7 item 3). Was a missing-market gap (`alternate_totals`, per-event-only), not a missing-region gap — see Day 7 above.
+9. Stale past-kickoff `NS` fixtures (odds probs never refresh once the live Odds API stops quoting a fixture, since it just drops out of the bulk slate) — noticed during Day 7 item 3 verification, not investigated further. Only matters if/when it's a fixture someone's actually looking at.
 
 ## Open questions for you
 - Separately: want me to look at fixing the suspended API-Football account (also affects WC last-5 stats), or leave it since MLS no longer depends on it?
-- Ready to scope any of the still-open items above (Render deploy, empty-state check), or commit the Day 6 mobile fixes and move on to something else?
+- Ready to scope any of the still-open items above — Render deploy (item 4), empty-state check (item 3), or the stale past-kickoff fixtures noticed today (item 9)?
+- Everything's pushed to `origin/main` now — worth also pushing to the `tyler` remote (`lgdsbrand/soccer-model.git`), or does he pull from `origin`?
