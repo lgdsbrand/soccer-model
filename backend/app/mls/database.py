@@ -68,6 +68,7 @@ def init_mls_db():
             draw_pct REAL,
             away_win_pct REAL,
             btts_pct REAL,
+            over_1_5_pct REAL,
             over_3_5_pct REAL,
             over_2_5_pct REAL,
             bookmaker_count INTEGER,
@@ -122,6 +123,15 @@ def init_mls_db():
         CREATE INDEX IF NOT EXISTS idx_mls_fixtures_date ON mls_fixtures(date_utc);
         CREATE INDEX IF NOT EXISTS idx_mls_fixtures_teams ON mls_fixtures(home_team_id, away_team_id);
     """)
+
+    # Migration: add over_1_5_pct column to mls_match_probs (added once the
+    # alternate_totals market — not just the bulk totals market — was wired
+    # up as an odds source; see app/mls/services/odds_api.py)
+    try:
+        cur.execute("ALTER TABLE mls_match_probs ADD COLUMN over_1_5_pct REAL")
+        conn.commit()
+    except Exception:
+        pass  # column already exists
 
     conn.commit()
     conn.close()

@@ -217,11 +217,11 @@ export interface Prediction {
   draw_pct: number;
   away_win_pct: number;
   btts_pct: number;
-  over_1_5_pct: number;
-  over_2_5_pct: number;
-  over_3_5_pct?: number; // MLS only — odds-derived, no MLS book quotes a 1.5 line
-  expected_home_goals: number;
-  expected_away_goals: number;
+  over_1_5_pct?: number;
+  over_2_5_pct?: number;
+  over_3_5_pct?: number; // MLS only — WC's Dixon-Coles model doesn't compute a 3.5 line
+  expected_home_goals?: number; // WC (Dixon-Coles) only — not derivable from odds markets, so absent for MLS
+  expected_away_goals?: number;
 }
 
 export interface RecommendedPlay {

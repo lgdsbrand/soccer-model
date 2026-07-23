@@ -144,28 +144,24 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
                 awayName={fixture.away_name}
                 knockout={isKnockout}
               />
-              <div style={{ display: "grid", gridTemplateColumns: pred.expected_home_goals != null ? "1fr 1fr 1fr 1fr" : "1fr 1fr 1fr", gap: "8px", marginTop: "16px" }}>
-                <StatChip label="BTTS" value={`${pred.btts_pct}%`} color="var(--accent-purple)" />
-                {/* WC (Dixon-Coles) always has both O1.5 and O2.5. MLS (odds-derived) tracks
-                    O2.5/O3.5 instead of O1.5/O2.5 (no MLS book quotes a 1.5 line), and per
-                    match only ONE of O2.5/O3.5 is ever populated — bookmakers quote either a
-                    2.5 or a 3.5 total for a given MLS fixture, never both — so those two are
-                    gated on presence instead of assumed to always be there. */}
-                {pred.expected_home_goals != null ? (
-                  <StatChip label="O1.5 Goals" value={`${pred.over_1_5_pct}%`} color="var(--accent-blue, #3d9df3)" />
-                ) : (
-                  pred.over_3_5_pct != null && (
-                    <StatChip label="O3.5 Goals" value={`${pred.over_3_5_pct}%`} color="var(--accent-blue, #3d9df3)" />
-                  )
-                )}
-                {(pred.expected_home_goals != null || pred.over_2_5_pct != null) && (
-                  <StatChip label="O2.5 Goals" value={`${pred.over_2_5_pct}%`} color="var(--accent-gold)" />
-                )}
-                {/* xG is Dixon-Coles-only (not derivable from odds markets) — MLS predictions won't have it */}
-                {pred.expected_home_goals != null && (
-                  <StatChip label="xG Home" value={pred.expected_home_goals.toFixed(2)} color="var(--accent-green)" />
-                )}
-              </div>
+              {/* WC (Dixon-Coles) always has O1.5/O2.5/xG, never O3.5. MLS (odds-derived) has
+                  O1.5/O2.5/O3.5 from The Odds API's alternate_totals market (see odds_api.py),
+                  never xG (not derivable from odds markets) — each gated on presence rather
+                  than assumed, and the grid sizes itself to however many actually render. */}
+              {(() => {
+                const chips: { label: string; value: string; color: string }[] = [
+                  { label: "BTTS", value: `${pred.btts_pct}%`, color: "var(--accent-purple)" },
+                ];
+                if (pred.over_1_5_pct != null) chips.push({ label: "O1.5 Goals", value: `${pred.over_1_5_pct}%`, color: "var(--accent-blue, #3d9df3)" });
+                if (pred.over_2_5_pct != null) chips.push({ label: "O2.5 Goals", value: `${pred.over_2_5_pct}%`, color: "var(--accent-gold)" });
+                if (pred.over_3_5_pct != null) chips.push({ label: "O3.5 Goals", value: `${pred.over_3_5_pct}%`, color: "var(--accent-teal, #2dd4bf)" });
+                if (pred.expected_home_goals != null) chips.push({ label: "xG Home", value: pred.expected_home_goals.toFixed(2), color: "var(--accent-green)" });
+                return (
+                  <div style={{ display: "grid", gridTemplateColumns: `repeat(${chips.length}, 1fr)`, gap: "8px", marginTop: "16px" }}>
+                    {chips.map(c => <StatChip key={c.label} label={c.label} value={c.value} color={c.color} />)}
+                  </div>
+                );
+              })()}
             </div>
           )}
 

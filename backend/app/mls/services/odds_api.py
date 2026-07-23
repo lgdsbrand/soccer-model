@@ -13,11 +13,24 @@ Verified live 2026-07-20 against a real key:
   through the per-event `/sports/{sport}/events/{id}/odds` endpoint. So this
   fetches btts with one extra call per matched fixture. Refresh is every 12h
   (not hourly) specifically to keep that bounded — see main.py.
-- MLS totals lines are never quoted at 1.5 (observed points across a full
-  slate: 2.5, 2.75, 3.0, 3.25, 3.5, 3.75 — makes sense, MLS averages ~3
-  goals/game so a 1.5 line isn't useful to bookmakers). Tracks Over 2.5/3.5
-  instead of 1.5/2.5 for MLS; unrelated to the World Cup's own over_1_5_pct
-  (Dixon-Coles-derived, in the separate `predictions` table).
+- The bulk `totals` market only ever carries each bookmaker's single "main"
+  line for a given fixture (observed points across a full slate: 2.5, 2.75,
+  3.0, 3.25, 3.5, 3.75 — MLS averages ~3 goals/game, so books split roughly
+  evenly between quoting 2.5-ish and 3.5-ish as their main line). That's why
+  a fixture often has only one of over_2_5_pct/over_3_5_pct from that source
+  alone, and why it never has 1.5 at all — 1.5 isn't a main line anyone
+  quotes for MLS.
+- 1.5 (and full coverage of 2.5/3.5) DOES exist, just on a different market:
+  `alternate_totals`, same per-event-only restriction as btts (422s on the
+  bulk endpoint). Verified live 2026-07-23: betmgm, fanduel, and betrivers
+  each quote 1.5/2.5/3.5 (plus 0.5, 4.5, 5.5...) via alternate_totals on
+  every fixture in a full slate — no region change needed, region=us alone
+  has it. So this fetches alternate_totals with one extra call per matched
+  fixture (same shape as the btts call) and merges those samples in with
+  whatever the bulk totals market found, giving every fixture all three of
+  over_1_5_pct/over_2_5_pct/over_3_5_pct instead of at most one of the
+  latter two. Unrelated to the World Cup's own over_1_5_pct (Dixon-Coles-
+  derived, in the separate `predictions` table).
 
 The team-name alias dict below is a best-effort seed for known MLS naming
 mismatches between bookmaker feeds and ESPN's team names; extend it if a
@@ -86,6 +99,7 @@ def _match_probs_from_event(event: Dict) -> Optional[Dict]:
         return None
 
     h2h_samples: List[Dict[str, float]] = []
+    over_1_5_samples: List[float] = []
     over_2_5_samples: List[float] = []
     over_3_5_samples: List[float] = []
     btts_samples: List[float] = []
@@ -101,7 +115,7 @@ def _match_probs_from_event(event: Dict) -> Optional[Dict]:
                 if devigged:
                     h2h_samples.append(devigged)
 
-            elif key == "totals":
+            elif key in ("totals", "alternate_totals"):
                 by_point: Dict[float, Dict[str, float]] = {}
                 for o in outcomes:
                     point = o.get("point")
@@ -113,7 +127,9 @@ def _match_probs_from_event(event: Dict) -> Optional[Dict]:
                     over_p = devigged.get("Over")
                     if over_p is None:
                         continue
-                    if point == 2.5:
+                    if point == 1.5:
+                        over_1_5_samples.append(over_p)
+                    elif point == 2.5:
                         over_2_5_samples.append(over_p)
                     elif point == 3.5:
                         over_3_5_samples.append(over_p)
@@ -144,6 +160,7 @@ def _match_probs_from_event(event: Dict) -> Optional[Dict]:
         "home_win_pct": round(home_win * 100, 1),
         "draw_pct": round(draw * 100, 1),
         "away_win_pct": round(away_win * 100, 1),
+        "over_1_5_pct": round(sum(over_1_5_samples) / len(over_1_5_samples) * 100, 1) if over_1_5_samples else None,
         "over_2_5_pct": round(sum(over_2_5_samples) / len(over_2_5_samples) * 100, 1) if over_2_5_samples else None,
         "over_3_5_pct": round(sum(over_3_5_samples) / len(over_3_5_samples) * 100, 1) if over_3_5_samples else None,
         "btts_pct": round(sum(btts_samples) / len(btts_samples) * 100, 1) if btts_samples else None,
@@ -170,11 +187,33 @@ async def _fetch_btts_bookmakers(client: httpx.AsyncClient, event_id: str) -> Li
         return []
 
 
+async def _fetch_alternate_totals_bookmakers(client: httpx.AsyncClient, event_id: str) -> List[Dict]:
+    """Per-event call — same INVALID_MARKET restriction as btts. This is where the 1.5 line
+    (and full 2.5/3.5 coverage) actually lives; the bulk `totals` market only has each
+    bookmaker's single main line, which is rarely 1.5 — see module docstring."""
+    try:
+        resp = await client.get(
+            f"{settings.odds_api_base}/sports/{settings.odds_api_sport_key}/events/{event_id}/odds",
+            params={
+                "apiKey": settings.odds_api_key,
+                "regions": "us",
+                "markets": "alternate_totals",
+                "oddsFormat": "decimal",
+            },
+        )
+        resp.raise_for_status()
+        return resp.json().get("bookmakers", [])
+    except Exception as e:
+        print(f"The Odds API error (alternate_totals, event {event_id}): {e}")
+        return []
+
+
 async def fetch_and_store_match_probs() -> Tuple[int, List[str]]:
     """
     Fetch odds for the full upcoming MLS slate (one bulk h2h+totals call,
-    plus one btts call per matched fixture — see _fetch_btts_bookmakers),
-    devig into win/draw/loss/BTTS/O2.5/O3.5, and store per mls_fixture_id.
+    plus one btts call and one alternate_totals call per matched fixture —
+    see _fetch_btts_bookmakers / _fetch_alternate_totals_bookmakers),
+    devig into win/draw/loss/BTTS/O1.5/O2.5/O3.5, and store per mls_fixture_id.
 
     Returns (rows written, unmatched team names) — unmatched names indicate
     ODDS_API_NAME_ALIASES needs another entry.
@@ -226,10 +265,14 @@ async def fetch_and_store_match_probs() -> Tuple[int, List[str]]:
                 continue
             fixture_id = row["id"]
 
-            # Only spend a btts credit on fixtures we're actually going to write.
+            # Only spend btts/alternate_totals credits on fixtures we're actually going to write.
             event_id = event.get("id")
             if event_id:
-                event["bookmakers"] = event.get("bookmakers", []) + await _fetch_btts_bookmakers(client, event_id)
+                event["bookmakers"] = (
+                    event.get("bookmakers", [])
+                    + await _fetch_btts_bookmakers(client, event_id)
+                    + await _fetch_alternate_totals_bookmakers(client, event_id)
+                )
 
             probs = _match_probs_from_event(event)
             if probs is None:
@@ -238,20 +281,22 @@ async def fetch_and_store_match_probs() -> Tuple[int, List[str]]:
             cur.execute("""
                 INSERT INTO mls_match_probs
                 (fixture_id, home_win_pct, draw_pct, away_win_pct, btts_pct,
-                 over_2_5_pct, over_3_5_pct, bookmaker_count, computed_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, unixepoch())
+                 over_1_5_pct, over_2_5_pct, over_3_5_pct, bookmaker_count, computed_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, unixepoch())
                 ON CONFLICT(fixture_id) DO UPDATE SET
                     home_win_pct=excluded.home_win_pct,
                     draw_pct=excluded.draw_pct,
                     away_win_pct=excluded.away_win_pct,
                     btts_pct=excluded.btts_pct,
+                    over_1_5_pct=excluded.over_1_5_pct,
                     over_2_5_pct=excluded.over_2_5_pct,
                     over_3_5_pct=excluded.over_3_5_pct,
                     bookmaker_count=excluded.bookmaker_count,
                     computed_at=excluded.computed_at
             """, (
                 fixture_id, probs["home_win_pct"], probs["draw_pct"], probs["away_win_pct"],
-                probs["btts_pct"], probs["over_2_5_pct"], probs["over_3_5_pct"], probs["bookmaker_count"],
+                probs["btts_pct"], probs["over_1_5_pct"], probs["over_2_5_pct"], probs["over_3_5_pct"],
+                probs["bookmaker_count"],
             ))
             written += 1
 
