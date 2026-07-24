@@ -12,7 +12,24 @@ export const mlsApi = {
   fixtures: (params?: string) => apiFetch<Fixture[]>(`/mls/fixtures/${params ? "?" + params : ""}`),
   fixture: (id: number) => apiFetch<FixtureDetail>(`/mls/fixtures/${id}`),
   standings: () => apiFetch<Record<string, MlsStanding[]>>("/mls/standings/"),
+  topPlays: () => apiFetch<MlsTopPlays>("/mls/fixtures/top-plays"),
 };
+
+export interface MlsTopPlay {
+  fixture_id: number;
+  date_utc: number;
+  home_name: string;
+  home_logo?: string;
+  away_name: string;
+  away_logo?: string;
+  value: number;
+}
+
+export interface MlsTopPlays {
+  btts: MlsTopPlay | null;
+  over_1_5: MlsTopPlay | null;
+  over_2_5: MlsTopPlay | null;
+}
 
 // MLS-only type: conference-based standings, not the group-stage-shaped
 // `Standing` type (group_letter, top-2-qualify framing) used for the World Cup.

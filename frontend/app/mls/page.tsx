@@ -1,5 +1,5 @@
 import { mlsApi, MLS_CURRENT_SEASON } from "@/lib/mlsApi";
-import type { MlsStanding } from "@/lib/mlsApi";
+import type { MlsStanding, MlsTopPlay, MlsTopPlays } from "@/lib/mlsApi";
 import type { Fixture } from "@/lib/api";
 import Link from "next/link";
 import FixtureRow from "@/components/FixtureRow";
@@ -12,9 +12,10 @@ function toEasternDateStr(ts: number): string {
 }
 
 export default async function MlsHomePage() {
-  const [allFixtures, conferences] = await Promise.all([
+  const [allFixtures, conferences, topPlays] = await Promise.all([
     mlsApi.fixtures(`season=${MLS_CURRENT_SEASON}&limit=300`).catch(() => [] as Fixture[]),
     mlsApi.standings().catch(() => ({} as Record<string, MlsStanding[]>)),
+    mlsApi.topPlays().catch(() => null as MlsTopPlays | null),
   ]);
 
   const todayStr = toEasternDateStr(Date.now() / 1000);
@@ -29,6 +30,13 @@ export default async function MlsHomePage() {
     .slice(0, 5);
 
   const sortedConferences = Object.keys(conferences).sort((a, b) => (a === "Eastern" ? -1 : b === "Eastern" ? 1 : 0));
+
+  const topPlayCards: { key: string; label: string; play: MlsTopPlay | null }[] = [
+    { key: "btts", label: "Best BTTS Play", play: topPlays?.btts ?? null },
+    { key: "over_1_5", label: "Best Over 1.5 Play", play: topPlays?.over_1_5 ?? null },
+    { key: "over_2_5", label: "Best Over 2.5 Play", play: topPlays?.over_2_5 ?? null },
+  ];
+  const hasTopPlays = topPlayCards.some(c => c.play !== null);
 
   return (
     <div>
@@ -51,6 +59,36 @@ export default async function MlsHomePage() {
           </div>
         </div>
       </div>
+
+      {/* Top Plays */}
+      {hasTopPlays && (
+        <div style={{ marginBottom: "24px" }}>
+          <div style={{ marginBottom: "12px", fontSize: "12px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            Top Plays Today
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3" style={{ gap: "20px" }}>
+            {topPlayCards.map(({ key, label, play }) => (
+              <div key={key} className="card" style={{ padding: "16px" }}>
+                <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>
+                  {label}
+                </div>
+                {play ? (
+                  <Link href={`/mls/matches/${play.fixture_id}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
+                    <div style={{ fontSize: "28px", fontWeight: 900, color: "var(--accent-green)", marginBottom: "8px" }}>
+                      {play.value.toFixed(1)}%
+                    </div>
+                    <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
+                      {play.home_name} vs {play.away_name}
+                    </div>
+                  </Link>
+                ) : (
+                  <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>No data yet</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Today's Schedule */}
       {todayMatches.length > 0 && (
