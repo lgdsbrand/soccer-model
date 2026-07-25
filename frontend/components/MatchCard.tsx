@@ -77,6 +77,9 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
           {fixture.home_group && (
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>Group {fixture.home_group}</div>
           )}
+          {fixture.home_power_rank != null && (
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>#{fixture.home_power_rank}</div>
+          )}
         </div>
 
         {/* Score / VS */}
@@ -104,6 +107,9 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
             </div>
           )}
           <div style={{ fontWeight: 700, fontSize: "16px" }}>{fixture.away_name}</div>
+          {fixture.away_power_rank != null && (
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>#{fixture.away_power_rank}</div>
+          )}
           {fixture.away_group && (
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>Group {fixture.away_group}</div>
           )}

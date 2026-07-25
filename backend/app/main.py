@@ -9,7 +9,7 @@ from app.database import init_db
 from app.routers import fixtures, standings, predictions, teams, insights, team_stats
 from app.services import football_data_org
 from app.mls.database import init_mls_db
-from app.mls.services import mls_source, odds_api, mls_team_stats
+from app.mls.services import mls_source, odds_api, mls_team_stats, power_ratings
 from app.mls.routers import fixtures as mls_fixtures, standings as mls_standings
 
 settings = get_settings()
@@ -84,8 +84,13 @@ async def _refresh_mls_data():
     await mls_source.fetch_standings()
     written, unmatched = await odds_api.fetch_and_store_match_probs()
     stats_n = await mls_team_stats.refresh_all_team_stats()
+    try:
+        ratings_n = await power_ratings.refresh_power_ratings()
+    except Exception as e:
+        print(f"MLS power ratings refresh failed: {e}")
+        ratings_n = 0
     print(f"MLS refresh: {n} fixtures synced, {written} match-prob rows written, "
-          f"{stats_n} team stats updated"
+          f"{stats_n} team stats updated, {ratings_n} power ratings updated"
           + (f", {len(unmatched)} unmatched odds team name(s)" if unmatched else ""))
 
 

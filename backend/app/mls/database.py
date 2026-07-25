@@ -120,6 +120,13 @@ def init_mls_db():
             updated_at REAL DEFAULT (unixepoch())
         );
 
+        CREATE TABLE IF NOT EXISTS mls_power_ratings (
+            team_name TEXT PRIMARY KEY,
+            rank INTEGER,
+            source TEXT DEFAULT 'sonnymoorepowerratings.com',
+            updated_at REAL DEFAULT (unixepoch())
+        );
+
         CREATE INDEX IF NOT EXISTS idx_mls_fixtures_date ON mls_fixtures(date_utc);
         CREATE INDEX IF NOT EXISTS idx_mls_fixtures_teams ON mls_fixtures(home_team_id, away_team_id);
     """)

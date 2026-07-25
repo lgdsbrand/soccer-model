@@ -100,6 +100,8 @@ export interface FixtureDetail extends Fixture {
   head_to_head?: Fixture[]; // MLS only — not set by the WC endpoint
   home_team_record?: TeamRecord; // MLS only — not set by the WC endpoint
   away_team_record?: TeamRecord;
+  home_power_rank?: number; // MLS only — not set by the WC endpoint
+  away_power_rank?: number;
   lineups?: LineupEntry[];
   lineups_confirmed: boolean;
   home_stats_avg?: TeamStats;

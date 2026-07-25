@@ -178,6 +178,9 @@ async def get_mls_fixture_detail(fixture_id: int, background_tasks: BackgroundTa
     fixture["home_team_stats"] = _get_mls_team_season_stats(fixture["home_name"])
     fixture["away_team_stats"] = _get_mls_team_season_stats(fixture["away_name"])
 
+    fixture["home_power_rank"] = _get_mls_power_rank(fixture["home_name"])
+    fixture["away_power_rank"] = _get_mls_power_rank(fixture["away_name"])
+
     # Goals/Goals Allowed per game — real observed averages from ESPN standings,
     # the same arithmetic WC uses for its own goals_per_game (see predictions.py's
     # get_attack_xg_ratings: gf/played, ga/played). No xg_rating/xga_rating
@@ -339,6 +342,15 @@ def _get_mls_team_season_stats(team_name: str) -> Optional[dict]:
     if not row or (row["corners"] is None and row["shots"] is None and row["fouls"] is None):
         return None
     return dict(row)
+
+
+def _get_mls_power_rank(team_name: str) -> Optional[int]:
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT rank FROM mls_power_ratings WHERE team_name = ?", (team_name,))
+    row = cur.fetchone()
+    conn.close()
+    return row["rank"] if row else None
 
 
 def _get_mls_goals_per_game(team_id: int) -> tuple:
