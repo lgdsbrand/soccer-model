@@ -117,16 +117,16 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
       </div>
 
       {/* Location + Weather */}
-      {((!showVenueHeader && (fixture.venue_name || fixture.venue_city)) || fixture.weather) && (
+      {(fixture.venue_name || fixture.venue_city || fixture.weather) && (
         <div style={{ padding: "0 20px 12px", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-          {!showVenueHeader && (fixture.venue_name || fixture.venue_city) && (
+          {(fixture.venue_name || fixture.venue_city) && (
             <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
               📍 {fixture.venue_name || fixture.venue_city}
             </span>
           )}
           {fixture.weather && (
             <>
-              {!showVenueHeader && (fixture.venue_name || fixture.venue_city) && <span style={{ color: "var(--border)" }}>·</span>}
+              {(fixture.venue_name || fixture.venue_city) && <span style={{ color: "var(--border)" }}>·</span>}
               {weatherStyle === "emoji" ? (
                 <span style={{ fontSize: "18px", lineHeight: 1 }}>{fixture.weather.emoji}</span>
               ) : (
