@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { formatDate, formatTime } from "@/lib/api";
+import { formatDate, formatShortDate, formatTime } from "@/lib/api";
 
 // page.tsx is a server component, so formatDate/formatTime called directly
 // there run on whatever machine renders the page (locally: dev machine's OS
@@ -15,10 +15,10 @@ import { formatDate, formatTime } from "@/lib/api";
 // first render are both empty, so they match — the real local value appears
 // a moment later as a normal client-side update, not part of hydration.
 
-export function LocalDate({ ts }: { ts: number }) {
+export function LocalDate({ ts, short }: { ts: number; short?: boolean }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  return mounted ? <>{formatDate(ts)}</> : null;
+  return mounted ? <>{short ? formatShortDate(ts) : formatDate(ts)}</> : null;
 }
 
 export function LocalTime({ ts }: { ts: number }) {

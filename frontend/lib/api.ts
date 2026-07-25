@@ -293,6 +293,12 @@ export function formatDate(ts: number): string {
   });
 }
 
+export function formatShortDate(ts: number): string {
+  return new Date(ts * 1000).toLocaleDateString("en-US", {
+    month: "short", day: "numeric",
+  });
+}
+
 export function formatTime(ts: number): string {
   return new Date(ts * 1000).toLocaleTimeString("en-US", {
     hour: "2-digit", minute: "2-digit", timeZoneName: "short",

@@ -399,9 +399,6 @@ function FormRow({ teamName, results, teamId }: { teamName: string; results: any
           const gc = isHome ? r.away_score : r.home_score;
           const outcome = gs > gc ? "W" : gs === gc ? "D" : "L";
           const color = colors[outcome as keyof typeof colors];
-          const dateStr = r.date_utc
-            ? new Date(r.date_utc * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-            : "";
           return (
             <div key={i} style={{
               display: "flex", alignItems: "center", gap: "6px",
@@ -410,7 +407,9 @@ function FormRow({ teamName, results, teamId }: { teamName: string; results: any
               border: `1px solid ${color}22`,
             }}>
               {/* Date */}
-              <span style={{ fontSize: "9px", color: "var(--text-muted)", flexShrink: 0, minWidth: "32px" }}>{dateStr}</span>
+              <span style={{ fontSize: "9px", color: "var(--text-muted)", flexShrink: 0, minWidth: "32px" }}>
+                {r.date_utc ? <LocalDate ts={r.date_utc} short /> : ""}
+              </span>
 
               {/* W/D/L badge */}
               <span style={{
@@ -477,9 +476,6 @@ function HeadToHeadSection({ results, homeId, homeName, awayName }: {
           const awaySideColor = r.away_team_id === homeId ? "var(--accent-green)" : "var(--accent-purple)";
           const homeSideWon = (r.home_score ?? 0) > (r.away_score ?? 0);
           const awaySideWon = (r.away_score ?? 0) > (r.home_score ?? 0);
-          const dateStr = r.date_utc
-            ? new Date(r.date_utc * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-            : "";
           return (
             <div key={i} style={{
               display: "flex", alignItems: "center", gap: "6px",
@@ -488,7 +484,9 @@ function HeadToHeadSection({ results, homeId, homeName, awayName }: {
               border: "1px solid var(--border)",
             }}>
               {/* Date */}
-              <span style={{ fontSize: "9px", color: "var(--text-muted)", flexShrink: 0, minWidth: "62px" }}>{dateStr}</span>
+              <span style={{ fontSize: "9px", color: "var(--text-muted)", flexShrink: 0, minWidth: "62px" }}>
+                {r.date_utc ? <LocalDate ts={r.date_utc} /> : ""}
+              </span>
 
               {/* Home side (whichever team actually hosted that meeting) */}
               <div className="form-team" style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0, justifyContent: "flex-end" }}>
