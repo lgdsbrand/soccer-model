@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import type { Fixture, FixtureDetail, Prediction, TeamSeasonStats, KeyPlayer, LineupEntry, MatchStat, TeamRecord, RecordSplit } from "@/lib/api";
-import { formatDate, formatTime, getStatusLabel } from "@/lib/api";
+import { getStatusLabel } from "@/lib/api";
+import { LocalDate, LocalTime } from "@/components/LocalTime";
 
 interface Props {
   fixture: FixtureDetail;
@@ -56,7 +57,7 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
           {fixture.venue_name && fixture.venue_city && " — "}
           {fixture.venue_city}
           {!isFinished && !isLive && (
-            <> · {formatTime(fixture.date_utc)} · {formatDate(fixture.date_utc)}</>
+            <> · <LocalTime ts={fixture.date_utc} /> · <LocalDate ts={fixture.date_utc} /></>
           )}
         </div>
       )}
@@ -87,8 +88,8 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
           ) : (
             <>
               <div style={{ fontSize: "22px", fontWeight: 700, color: "var(--text-muted)" }}>VS</div>
-              <div style={{ fontSize: "13px", color: "var(--accent-green)", marginTop: "4px" }}>{formatTime(fixture.date_utc)}</div>
-              <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{formatDate(fixture.date_utc)}</div>
+              <div style={{ fontSize: "13px", color: "var(--accent-green)", marginTop: "4px" }}><LocalTime ts={fixture.date_utc} /></div>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)" }}><LocalDate ts={fixture.date_utc} /></div>
             </>
           )}
         </div>

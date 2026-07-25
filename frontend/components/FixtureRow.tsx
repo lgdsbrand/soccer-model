@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import type { Fixture } from "@/lib/api";
-import { formatDate, formatTime, getStatusLabel } from "@/lib/api";
+import { getStatusLabel } from "@/lib/api";
+import { LocalTime } from "@/components/LocalTime";
 
 export default function FixtureRow({ fixture, basePath = "/matches" }: { fixture: Fixture; basePath?: string }) {
   const status = getStatusLabel(fixture.status);
@@ -26,7 +27,7 @@ export default function FixtureRow({ fixture, basePath = "/matches" }: { fixture
             <span style={{ fontSize: "11px", color: status.color, fontWeight: 600 }}>{status.label}</span>
           </div>
           <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
-            {formatTime(fixture.date_utc)}
+            <LocalTime ts={fixture.date_utc} />
           </div>
         </div>
 
