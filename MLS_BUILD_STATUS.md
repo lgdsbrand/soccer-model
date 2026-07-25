@@ -1,8 +1,10 @@
-# MLS Section — Build Status (checkpoint: Day 7, client mobile feedback fixed + O1.5 odds gap fixed, all pushed to origin)
+# MLS Section — Build Status (checkpoint: Day 8, live on Render with Top Plays section added)
 
 Plan file: `C:\Users\denis\.claude\plans\i-m-adding-an-mls-iterative-volcano.md`
 
-## Safe to demo to Tyler right now (2026-07-23)
+## Safe to demo to Tyler right now (2026-07-24)
+
+**Live on Render** — deployed, `ODDS_API_KEY` set in the Render dashboard env vars (not reflected in `render.yaml`, which still only lists the other keys — cosmetic gap, not a blocker since Render env vars can be set manually outside the file). Confirmed live: Top Plays section rendering with real data on the production URL.
 
 **Solid — desktop, localhost:3000 only:**
 - MLS Dashboard, Matches list, Standings — real ESPN data, confirmed clean via live screenshots.
@@ -16,7 +18,6 @@ Plan file: `C:\Users\denis\.claude\plans\i-m-adding-an-mls-iterative-volcano.md`
 
 **Not ready — don't show:**
 - The "no odds posted yet" empty state for far-future fixtures (untested).
-- The deployed Render site — nothing pushed/deployed yet, still running old pre-MLS code, no `ODDS_API_KEY` configured there. Only `localhost:3000` is current.
 - Flag to Tyler as by-design, not a bug: Attack Strength doesn't show for MLS (no Dixon-Coles model for MLS yet — see item 9 under Day 4 below). Goals/xG row now just reads "Goals"/"Goals Allowed" for MLS (no more dangling "/ —"; see Day 5 below).
 
 ## Done
@@ -99,13 +100,18 @@ Working from Tyler's own screenshots this time (`MLS_problems/Tyler feedback/`),
 
 **All three of today's code fixes pushed to `origin/main`** (`055b28d`, `b8866b5`, `0585cba` — branch is even with origin as of end of session, nothing outstanding).
 
+### Day 8 (2026-07-24) — Top Plays section + Render deploy confirmed live
+
+1. **Top Plays section added to MLS dashboard** (`63f321f`) — three cards showing today's single highest-probability match for BTTS, O1.5, and O2.5 each, via new `/mls/fixtures/top-plays` endpoint (`backend/app/mls/routers/fixtures.py`, `frontend/app/mls/page.tsx`, `frontend/lib/mlsApi.ts`). Route declared before `/{fixture_id}` to avoid FastAPI parsing "top-plays" as the int path param. Reuses the existing US Eastern "today" boundary; section hides itself when no MLS games are scheduled today. Pushed to `origin/main`.
+2. **Render deploy confirmed live** — `ODDS_API_KEY` is set as a Render dashboard env var (not in `render.yaml`, set manually like the other `sync: false` keys). Confirmed directly on the production URL: Top Plays rendering with real data. This closes out items 4 and 5 below (deploy done, key configured); a full smoke test pass across all pages is still worth doing but the core deploy blocker is resolved.
+
 ## Left to do
 
 1. ~~Finish verifying `odds_api.py` against a real Odds API key~~ — **done 2026-07-20**. Real key in `backend/.env`, live-verified, 3 real bugs found and fixed (see above). Local dev DB (`wc2026.db`) migrated in place (`over_1_5_pct` → `over_3_5_pct`, 0 rows lost — table was still empty pre-fix).
 2. ~~Mobile/responsive pass on the new MLS pages~~ — **done 2026-07-22** (Day 6), plus real-phone follow-up fixes **done 2026-07-23** (Day 7, items 1-2) from Tyler's actual screenshots. All committed and pushed.
 3. Confirm the "odds not yet available" empty state (for far-future fixtures with no posted lines) looks right, not broken. **Still open.**
-4. Add `ODDS_API_KEY` to `render.yaml` env list + Render dashboard secret (still open — production deploy hasn't happened yet).
-5. Final end-to-end smoke test against the deployed site.
+4. ~~Add `ODDS_API_KEY` to Render~~ — **done**, set directly in the Render dashboard (2026-07-24). `render.yaml` itself still doesn't list it, purely cosmetic since it's not synced from the file anyway.
+5. Final end-to-end smoke test against the deployed site — **partially done**: Top Plays confirmed live and working. Rest of the site (dashboard, matches, standings, match detail, mobile) not yet re-verified specifically on the production URL.
 6. ~~Nothing has been committed to git yet~~ / ~~branch not pushed~~ — **done**. `b62693c`, `330e05d` (2026-07-22), then `055b28d`, `b8866b5`, `0585cba` (2026-07-23, Day 7) — **all pushed to `origin/main`**, branch even with origin as of end of Day 7.
 7. Backfilling further back than 2023 for head-to-head (currently 2023-2026 only) — only worth doing if a specific pair still looks thin.
 8. ~~O1.5 goals odds missing for MLS~~ — **done 2026-07-23** (Day 7 item 3). Was a missing-market gap (`alternate_totals`, per-event-only), not a missing-region gap — see Day 7 above.
@@ -113,5 +119,5 @@ Working from Tyler's own screenshots this time (`MLS_problems/Tyler feedback/`),
 
 ## Open questions for you
 - Separately: want me to look at fixing the suspended API-Football account (also affects WC last-5 stats), or leave it since MLS no longer depends on it?
-- Ready to scope any of the still-open items above — Render deploy (item 4), empty-state check (item 3), or the stale past-kickoff fixtures noticed today (item 9)?
-- Everything's pushed to `origin/main` now — worth also pushing to the `tyler` remote (`lgdsbrand/soccer-model.git`), or does he pull from `origin`?
+- Ready to scope any of the still-open items above — empty-state check (item 3), full production smoke test (item 5), or the stale past-kickoff fixtures noticed Day 7 (item 9)?
+- A `tyler` remote (`lgdsbrand/soccer-model.git`) exists locally but is still sitting on a pre-MLS commit (`fb8784d`) — worth pushing `main` there too, or does Tyler pull from `origin`?

@@ -143,6 +143,7 @@ export interface Weather {
   humidity: number;
   wind_speed_ms: number;
   icon: string;
+  emoji: string;
 }
 
 export interface Standing {

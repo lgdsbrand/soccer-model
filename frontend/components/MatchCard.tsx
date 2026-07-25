@@ -9,13 +9,15 @@ interface Props {
   basePath?: string;
   showRecommendedPlay?: boolean;
   showXg?: boolean;
+  showVenueHeader?: boolean;
+  weatherStyle?: "icon" | "emoji";
 }
 
 const KNOCKOUT_ROUNDS = new Set([
   "Round of 32", "Round of 16", "Quarter-finals", "Semi-finals", "Final", "3rd Place",
 ]);
 
-export default function MatchCard({ fixture, compact, basePath = "/matches", showRecommendedPlay = true, showXg = true }: Props) {
+export default function MatchCard({ fixture, compact, basePath = "/matches", showRecommendedPlay = true, showXg = true, showVenueHeader = false, weatherStyle = "icon" }: Props) {
   const status = getStatusLabel(fixture.status);
   const pred = fixture.prediction;
   const isLive = ["1H", "2H", "HT", "ET", "P"].includes(fixture.status);
@@ -43,6 +45,21 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
           <span style={{ fontSize: "12px", color: status.color, fontWeight: 600 }}>{status.label}</span>
         </div>
       </div>
+
+      {/* Venue + kickoff time, above the team names */}
+      {showVenueHeader && (fixture.venue_name || fixture.venue_city) && (
+        <div style={{
+          padding: "10px 20px 0", textAlign: "center",
+          fontSize: "12px", color: "var(--text-secondary)",
+        }}>
+          🏟️ {fixture.venue_name}
+          {fixture.venue_name && fixture.venue_city && " — "}
+          {fixture.venue_city}
+          {!isFinished && !isLive && (
+            <> · {formatTime(fixture.date_utc)} · {formatDate(fixture.date_utc)}</>
+          )}
+        </div>
+      )}
 
       {/* Teams + Score */}
       <div style={{ padding: "20px", display: "flex", alignItems: "center", gap: "16px" }}>
@@ -93,21 +110,25 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
       </div>
 
       {/* Location + Weather */}
-      {(fixture.venue_name || fixture.venue_city || fixture.weather) && (
+      {((!showVenueHeader && (fixture.venue_name || fixture.venue_city)) || fixture.weather) && (
         <div style={{ padding: "0 20px 12px", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-          {(fixture.venue_name || fixture.venue_city) && (
+          {!showVenueHeader && (fixture.venue_name || fixture.venue_city) && (
             <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
               📍 {fixture.venue_name || fixture.venue_city}
             </span>
           )}
           {fixture.weather && (
             <>
-              {(fixture.venue_name || fixture.venue_city) && <span style={{ color: "var(--border)" }}>·</span>}
-              <img
-                src={`https://openweathermap.org/img/wn/${fixture.weather.icon}.png`}
-                alt={fixture.weather.description}
-                style={{ width: "18px", height: "18px", verticalAlign: "middle" }}
-              />
+              {!showVenueHeader && (fixture.venue_name || fixture.venue_city) && <span style={{ color: "var(--border)" }}>·</span>}
+              {weatherStyle === "emoji" ? (
+                <span style={{ fontSize: "18px", lineHeight: 1 }}>{fixture.weather.emoji}</span>
+              ) : (
+                <img
+                  src={`https://openweathermap.org/img/wn/${fixture.weather.icon}.png`}
+                  alt={fixture.weather.description}
+                  style={{ width: "18px", height: "18px", verticalAlign: "middle" }}
+                />
+              )}
               <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
                 {fixture.weather.temperature_c.toFixed(1)}°C, {fixture.weather.description}
               </span>

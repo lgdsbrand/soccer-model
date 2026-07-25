@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from typing import List, Optional
 from app.mls.database import get_connection
-from app.services import llm
+from app.services import llm, weather as weather_svc
 
 MLS_LABEL = "the 2026 MLS season"
 
@@ -106,9 +106,9 @@ async def get_mls_top_plays():
 async def get_mls_fixture_detail(fixture_id: int, background_tasks: BackgroundTasks):
     """
     MLS match card: fixture + odds-derived prediction + lineups (LLM-predicted)
-    + key players + style of play + season stats + AI analysis.
-    No Dixon-Coles model, no weather, no live match stats — matches the
-    scope confirmed for the MLS launch (see plan doc).
+    + key players + style of play + season stats + weather + AI analysis.
+    No Dixon-Coles model, no live match stats — matches the scope confirmed
+    for the MLS launch (see plan doc).
     """
     conn = get_connection()
     cur = conn.cursor()
@@ -162,6 +162,13 @@ async def get_mls_fixture_detail(fixture_id: int, background_tasks: BackgroundTa
     # in MatchCard.tsx, which sizes its "Last N" label off the array length.
     fixture["home_last5"] = _get_mls_last10(fixture["home_team_id"])
     fixture["away_last5"] = _get_mls_last10(fixture["away_team_id"])
+
+    fixture["weather"] = None
+    if fixture.get("venue_city"):
+        try:
+            fixture["weather"] = await weather_svc.get_weather(fixture["venue_city"])
+        except Exception:
+            pass
 
     fixture["head_to_head"] = _get_mls_head_to_head(fixture["home_team_id"], fixture["away_team_id"])
 

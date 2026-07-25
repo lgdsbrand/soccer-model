@@ -30,6 +30,76 @@ VENUE_COORDS: Dict[str, tuple] = {
     "Guadalajara": (20.6597, -103.3496),
 }
 
+# MLS venue coordinates — keyed by the exact "City, State"/"City" string ESPN
+# returns in venue.address.city, so these hit the dict.get() exact match
+# above rather than relying on the WC dict's substring fallback (which is
+# fine for overlapping names like "Seattle" but wrong for e.g. the two
+# different "Kansas City, {Kansas,Missouri}" venues).
+MLS_VENUE_COORDS: Dict[str, tuple] = {
+    "Atlanta, Georgia": (33.7554, -84.4013),
+    "Austin, Texas": (30.2672, -97.7431),
+    "Baltimore, Maryland": (39.2904, -76.6122),
+    "Bridgeview, Illinois": (41.7486, -87.8017),
+    "Carson, California": (33.8358, -118.2620),
+    "Charlotte, North Carolina": (35.2271, -80.8431),
+    "Chester, Pennsylvania": (39.8496, -75.3557),
+    "Chicago, Illinois": (41.8781, -87.6298),
+    "Cincinnati, Ohio": (39.1031, -84.5120),
+    "Cleveland, Ohio": (41.4993, -81.6944),
+    "Columbus, Ohio": (39.9612, -82.9988),
+    "Commerce City, Colorado": (39.8083, -104.9342),
+    "Denver, Colorado": (39.7392, -104.9903),
+    "Fort Lauderdale, Florida": (26.1224, -80.1373),
+    "Foxborough, Massachusetts": (42.0909, -71.2643),
+    "Harrison, New Jersey": (40.7398, -74.1552),
+    "Houston, Texas": (29.6847, -95.4107),
+    "Kansas City, Kansas": (39.1155, -94.8233),
+    "Kansas City, Missouri": (39.0489, -94.4839),
+    "Los Angeles, California": (34.0522, -118.2437),
+    "Miami, Florida": (25.7617, -80.1918),
+    "Montreal": (45.5017, -73.5673),
+    "Nashville, Tennessee": (36.1627, -86.7816),
+    "New York City": (40.8296, -73.9262),
+    "New York, New York": (40.7498, -73.8458),
+    "Orlando, Florida": (28.5421, -81.3790),
+    "Pasadena, California": (34.1478, -118.1445),
+    "Portland, Oregon": (45.5152, -122.6784),
+    "Saint Paul, Minnesota": (44.9537, -93.0900),
+    "San Diego, California": (32.7157, -117.1611),
+    "San Jose, California": (37.3382, -121.8863),
+    "Sandy, Utah": (40.5649, -111.8389),
+    "Santa Clara, California": (37.4032, -121.9697),
+    "Seattle, Washington": (47.5952, -122.3316),
+    "St. Louis, Missouri": (38.6270, -90.1994),
+    "Stanford, California": (37.4275, -122.1697),
+    "Toronto": (43.6333, -79.4189),
+    # ESPN's venue.address.city for FC Dallas's stadium comes back as the
+    # venue name itself ("Toyota Stadium"), not an actual city — the venue
+    # is in Frisco, TX; coords below are Frisco's, not a literal city match.
+    "Toyota Stadium": (33.1538, -96.8464),
+    "Vancouver": (49.2767, -123.1116),
+    "Washington, District of Columbia": (38.9072, -77.0369),
+}
+VENUE_COORDS.update(MLS_VENUE_COORDS)
+
+# OpenWeatherMap icon code -> emoji, grouped by the "day/night" suffix
+# families OWM uses (d/n): https://openweathermap.org/weather-conditions
+_ICON_EMOJI: Dict[str, str] = {
+    "01d": "☀️", "01n": "🌙",
+    "02d": "⛅", "02n": "☁️",
+    "03d": "☁️", "03n": "☁️",
+    "04d": "☁️", "04n": "☁️",
+    "09d": "🌧️", "09n": "🌧️",
+    "10d": "🌦️", "10n": "🌧️",
+    "11d": "⛈️", "11n": "⛈️",
+    "13d": "❄️", "13n": "❄️",
+    "50d": "🌫️", "50n": "🌫️",
+}
+
+
+def get_weather_emoji(icon: Optional[str]) -> str:
+    return _ICON_EMOJI.get(icon or "", "🌡️")
+
 
 async def get_weather(venue_city: str, lat: Optional[float] = None, lon: Optional[float] = None) -> Optional[Dict]:
     """Get weather for a venue city with caching."""
@@ -83,6 +153,7 @@ async def get_weather(venue_city: str, lat: Optional[float] = None, lon: Optiona
             "humidity": raw["main"]["humidity"],
             "wind_speed_ms": raw["wind"]["speed"],
             "icon": raw["weather"][0]["icon"],
+            "emoji": get_weather_emoji(raw["weather"][0]["icon"]),
             "lat": lat,
             "lon": lon,
         }
