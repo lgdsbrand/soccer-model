@@ -105,7 +105,12 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
         <div style={{ padding: "0 20px 12px", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
           {(fixture.venue_name || fixture.venue_city) && (
             <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
+              {/* venue_city is only appended when it adds real information —
+                  WC's venue_name already embeds the city (e.g. "New York/New
+                  Jersey (East Rutherford)"), but MLS's venue_name/venue_city
+                  are genuinely separate ("GEODIS Park" / "Nashville, Tennessee") */}
               📍 {fixture.venue_name || fixture.venue_city}
+              {fixture.venue_name && fixture.venue_city && !fixture.venue_name.includes(fixture.venue_city) && ` — ${fixture.venue_city}`}
             </span>
           )}
           {fixture.weather && (
