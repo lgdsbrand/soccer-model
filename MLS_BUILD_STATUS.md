@@ -4,6 +4,8 @@ Plan file: `C:\Users\denis\.claude\plans\i-m-adding-an-mls-iterative-volcano.md`
 
 ## Safe to demo to Tyler right now (2026-07-24)
 
+**Live site:** https://soccer-model-six.vercel.app (frontend, Vercel) — backend API at https://soccer-model.onrender.com (Render).
+
 **Live on Render** — deployed, `ODDS_API_KEY` set in the Render dashboard env vars (not reflected in `render.yaml`, which still only lists the other keys — cosmetic gap, not a blocker since Render env vars can be set manually outside the file). Confirmed live: Top Plays section rendering with real data on the production URL.
 
 **Solid — desktop, localhost:3000 only:**

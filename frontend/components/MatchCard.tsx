@@ -10,7 +10,6 @@ interface Props {
   basePath?: string;
   showRecommendedPlay?: boolean;
   showXg?: boolean;
-  showVenueHeader?: boolean;
   weatherStyle?: "icon" | "emoji";
 }
 
@@ -18,7 +17,7 @@ const KNOCKOUT_ROUNDS = new Set([
   "Round of 32", "Round of 16", "Quarter-finals", "Semi-finals", "Final", "3rd Place",
 ]);
 
-export default function MatchCard({ fixture, compact, basePath = "/matches", showRecommendedPlay = true, showXg = true, showVenueHeader = false, weatherStyle = "icon" }: Props) {
+export default function MatchCard({ fixture, compact, basePath = "/matches", showRecommendedPlay = true, showXg = true, weatherStyle = "icon" }: Props) {
   const status = getStatusLabel(fixture.status);
   const pred = fixture.prediction;
   const isLive = ["1H", "2H", "HT", "ET", "P"].includes(fixture.status);
@@ -46,21 +45,6 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
           <span style={{ fontSize: "12px", color: status.color, fontWeight: 600 }}>{status.label}</span>
         </div>
       </div>
-
-      {/* Venue + kickoff time, above the team names */}
-      {showVenueHeader && (fixture.venue_name || fixture.venue_city) && (
-        <div style={{
-          padding: "10px 20px 0", textAlign: "center",
-          fontSize: "12px", color: "var(--text-secondary)",
-        }}>
-          🏟️ {fixture.venue_name}
-          {fixture.venue_name && fixture.venue_city && " — "}
-          {fixture.venue_city}
-          {!isFinished && !isLive && (
-            <> · <LocalTime ts={fixture.date_utc} /> · <LocalDate ts={fixture.date_utc} /></>
-          )}
-        </div>
-      )}
 
       {/* Teams + Score */}
       <div style={{ padding: "20px", display: "flex", alignItems: "center", gap: "16px" }}>
