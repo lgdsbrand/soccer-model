@@ -17,6 +17,8 @@ const KNOCKOUT_ROUNDS = new Set([
   "Round of 32", "Round of 16", "Quarter-finals", "Semi-finals", "Final", "3rd Place",
 ]);
 
+const FORM_COLORS: Record<"W" | "D" | "L", string> = { W: "#00d084", D: "#f5a623", L: "#ff4757" };
+
 export default function MatchCard({ fixture, compact, basePath = "/matches", showRecommendedPlay = true, showXg = true, weatherStyle = "icon" }: Props) {
   const status = getStatusLabel(fixture.status);
   const pred = fixture.prediction;
@@ -68,6 +70,9 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
             </div>
           )}
           <div style={{ fontWeight: 700, fontSize: "16px" }}>{fixture.home_name}</div>
+          {fixture.home_last5 && fixture.home_last5.length > 0 && (
+            <FormBadges results={fixture.home_last5} teamId={fixture.home_team_id} />
+          )}
           {fixture.home_group && (
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>Group {fixture.home_group}</div>
           )}
@@ -101,6 +106,9 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
             </div>
           )}
           <div style={{ fontWeight: 700, fontSize: "16px" }}>{fixture.away_name}</div>
+          {fixture.away_last5 && fixture.away_last5.length > 0 && (
+            <FormBadges results={fixture.away_last5} teamId={fixture.away_team_id} />
+          )}
           {fixture.away_power_rank != null && (
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>Power Rank #{fixture.away_power_rank}</div>
           )}
@@ -378,8 +386,30 @@ function StatChip({ label, value, color }: { label: string; value: string; color
   );
 }
 
+function FormBadges({ results, teamId }: { results: any[]; teamId: number }) {
+  const shown = results.slice(0, 5);
+  return (
+    <div style={{ display: "flex", justifyContent: "center", gap: "3px", marginTop: "6px" }}>
+      {shown.map((r, i) => {
+        const isHome = r.home_team_id === teamId;
+        const gs = isHome ? r.home_score : r.away_score;
+        const gc = isHome ? r.away_score : r.home_score;
+        const outcome = gs > gc ? "W" : gs === gc ? "D" : "L";
+        return (
+          <span key={i} style={{
+            width: "17px", height: "17px", borderRadius: "3px", flexShrink: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "9px", fontWeight: 800, color: "#fff",
+            backgroundColor: FORM_COLORS[outcome],
+          }}>{outcome}</span>
+        );
+      })}
+    </div>
+  );
+}
+
 function FormRow({ teamName, results, teamId }: { teamName: string; results: any[]; teamId: number }) {
-  const colors = { W: "#00d084", D: "#f5a623", L: "#ff4757" };
+  const colors = FORM_COLORS;
   const shown = results.slice(0, 10);
   return (
     <div>
