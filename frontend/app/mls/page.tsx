@@ -66,9 +66,9 @@ export default async function MlsHomePage() {
           <div style={{ marginBottom: "12px", fontSize: "12px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
             Top Plays Today
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3" style={{ gap: "20px" }}>
+          <div className="top-plays-scroll" style={{ display: "flex", gap: "16px", overflowX: "auto", paddingBottom: "6px", scrollSnapType: "x mandatory" }}>
             {topPlayCards.map(({ key, label, play }) => (
-              <div key={key} className="card" style={{ padding: "16px" }}>
+              <div key={key} className="card" style={{ padding: "16px", minWidth: "220px", flexShrink: 0, scrollSnapAlign: "start" }}>
                 <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>
                   {label}
                 </div>

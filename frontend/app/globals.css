@@ -237,6 +237,16 @@ body {
   }
 }
 
+/* MatchDayNav's 5 pills (each with a label + date, natural width) can run
+   wider than a narrow phone screen — scroll horizontally instead of
+   wrapping onto a second row, which would break the "one row of pills"
+   design entirely. */
+@media (max-width: 480px) {
+  .match-day-nav {
+    overflow-x: auto;
+  }
+}
+
 .stat-bar {
   height: 6px;
   border-radius: 3px;

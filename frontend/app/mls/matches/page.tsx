@@ -50,7 +50,7 @@ export default async function MlsMatchesPage() {
         </p>
       </div>
 
-      <MatchDayNav dates={dates} activeDate={dates[0]} />
+      <MatchDayNav dates={dates} activeDate={dates[0]} todayStr={todayStr} />
 
       {dates.length === 0 ? (
         <div className="card" style={{ padding: "60px", textAlign: "center" }}>
