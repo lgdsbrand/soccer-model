@@ -46,6 +46,16 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
         </div>
       </div>
 
+      {/* Region — only shown separately when it isn't already embedded in
+          venue_name (WC's venue_name already includes the city, e.g. "New
+          York/New Jersey (East Rutherford)"; MLS's venue_name/venue_city are
+          genuinely separate, "GEODIS Park" / "Nashville, Tennessee") */}
+      {fixture.venue_city && !(fixture.venue_name && fixture.venue_name.includes(fixture.venue_city)) && (
+        <div style={{ padding: "10px 20px 0", textAlign: "center", fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+          {fixture.venue_city}
+        </div>
+      )}
+
       {/* Teams + Score */}
       <div style={{ padding: "20px", display: "flex", alignItems: "center", gap: "16px" }}>
         {/* Home */}
@@ -62,7 +72,7 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>Group {fixture.home_group}</div>
           )}
           {fixture.home_power_rank != null && (
-            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>#{fixture.home_power_rank}</div>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>Power Rank #{fixture.home_power_rank}</div>
           )}
         </div>
 
@@ -92,7 +102,7 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
           )}
           <div style={{ fontWeight: 700, fontSize: "16px" }}>{fixture.away_name}</div>
           {fixture.away_power_rank != null && (
-            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>#{fixture.away_power_rank}</div>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>Power Rank #{fixture.away_power_rank}</div>
           )}
           {fixture.away_group && (
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>Group {fixture.away_group}</div>
@@ -105,12 +115,7 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
         <div style={{ padding: "0 20px 12px", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
           {(fixture.venue_name || fixture.venue_city) && (
             <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
-              {/* venue_city is only appended when it adds real information —
-                  WC's venue_name already embeds the city (e.g. "New York/New
-                  Jersey (East Rutherford)"), but MLS's venue_name/venue_city
-                  are genuinely separate ("GEODIS Park" / "Nashville, Tennessee") */}
               📍 {fixture.venue_name || fixture.venue_city}
-              {fixture.venue_name && fixture.venue_city && !fixture.venue_name.includes(fixture.venue_city) && ` — ${fixture.venue_city}`}
             </span>
           )}
           {fixture.weather && (
