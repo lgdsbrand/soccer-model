@@ -1,4 +1,4 @@
-# MLS Section — Build Status (checkpoint: Day 8, live on Render with Top Plays section added)
+# MLS Section — Build Status (checkpoint: Day 9, weather/power-rank/date-pill/Top-Plays restyle, all pushed to origin/main)
 
 Plan file: `C:\Users\denis\.claude\plans\i-m-adding-an-mls-iterative-volcano.md`
 
@@ -107,6 +107,24 @@ Working from Tyler's own screenshots this time (`MLS_problems/Tyler feedback/`),
 1. **Top Plays section added to MLS dashboard** (`63f321f`) — three cards showing today's single highest-probability match for BTTS, O1.5, and O2.5 each, via new `/mls/fixtures/top-plays` endpoint (`backend/app/mls/routers/fixtures.py`, `frontend/app/mls/page.tsx`, `frontend/lib/mlsApi.ts`). Route declared before `/{fixture_id}` to avoid FastAPI parsing "top-plays" as the int path param. Reuses the existing US Eastern "today" boundary; section hides itself when no MLS games are scheduled today. Pushed to `origin/main`.
 2. **Render deploy confirmed live** — `ODDS_API_KEY` is set as a Render dashboard env var (not in `render.yaml`, set manually like the other `sync: false` keys). Confirmed directly on the production URL: Top Plays rendering with real data. This closes out items 4 and 5 below (deploy done, key configured); a full smoke test pass across all pages is still worth doing but the core deploy blocker is resolved.
 
+### Day 9 (2026-07-25 & 2026-07-27) — weather insights, power ranking, and a client-driven restyle pass
+
+Two undocumented commits landed 2026-07-25 alongside the ones detailed below: `5b041e6` (MLS weather insights with emojis + a stadium/kickoff header above the team names) and `fd126ee` (MLS power ranking, scraped from sonnymoorepowerratings.com/mls.htm into a new `mls_power_ratings` table, refreshed alongside the existing 12h MLS job — shown as a bare `#N` under each team name at the time). `6bcea16`/`4e23668` fixed server-vs-visitor timezone hydration mismatches in match times/dates and in the Last-10/Head-to-Head per-row dates.
+
+Rest of this section is 2026-07-27, working from Tyler's own reference screenshots (`MLS_fromPicsFromTyler/`):
+
+1. **Venue name was showing twice** (`4cbfd7b`) — the Day 9 header (`5b041e6`) duplicated the venue name already shown in the weather row below it. Removed the header block. This was too broad a fix: it also deleted the only place `venue_city` was shown, since MLS's `venue_name`/`venue_city` are genuinely separate fields (unlike WC, where `venue_name` already embeds the city) — caught by the user, restored in `0fc2ec1` with a substring check so it doesn't reappear duplicated on WC.
+2. **Region moved to its own line, power rank labeled** (`1e502c4`) — per client ask: region (city) now sits on its own centered line above the team names (only when not already embedded in `venue_name`); the power-rank number now reads "Power Rank #2" instead of a bare, unlabeled "#2" the client couldn't identify (it was there all along, just unlabeled — confirmed live on the production API/page before assuming it was actually missing).
+3. **Weather row cleanup** (`c886233`) — removed the "Now" label (added no information). On mobile, the row's five items (venue, icon, temp/condition, humidity, wind) wrapped across 2-3 uneven lines at desktop sizing; forced onto one line below 480px with a horizontal-scroll fallback (same defensive pattern as the standings table), with smaller fonts/gaps/padding so MLS fixtures fit without ever needing to scroll (WC's much longer venue strings still scroll rather than wrap).
+4. **Compact W/D/L form-badge row** (`c31fdc1`) — 5 small solid-colored squares (green W / gold D / red L) under each team name, matching Tyler's reference (`IMG_5027.jpeg`, a WindrawWin screenshot). Separate from and in addition to the existing detailed Last-10 list further down the card; reuses the same outcome logic/colors (extracted to a shared `FORM_COLORS` constant).
+5. **Date-pill row and Top Plays restyled per Tyler's reference** (`4cca369`, `IMG_5026.jpeg`) — `MatchDayNav`'s pills now show a relative label ("Today"/"Tomorrow"/"In N Days", computed from real calendar distance to today, not array position) above a bold date, active day filled solid, instead of one weekday+date line; horizontal-scroll fallback on mobile. Top Plays swapped its stacked grid for a horizontally scrollable, swipeable row with scroll-snap (verified by temporarily forcing the section on locally, since there was no MLS game that day to trigger it naturally — reverted before committing).
+
+**Dev-environment quirks hit again this session** (both previously undocumented, worth remembering):
+- Turbopack's CSS hot-reload still doesn't reliably pick up `globals.css` edits — kill the dev server, `rm -rf .next`, restart; don't trust a running server to reflect new CSS.
+- Playwright's `browser_resize` here doesn't map 1:1 to CSS viewport width — confirmed a **1.5x** scale factor this session (requesting 375 produced `window.innerWidth: 562`), different from the **3x** `getBoundingClientRect()` quirk noted Day 7. Always check `window.innerWidth`/`matchMedia(...).matches` directly rather than trusting the requested dimension when testing a specific breakpoint.
+
+All of the above verified live via Playwright (screenshots + console checks) on both MLS and WC pages, desktop and mobile, and pushed to `origin/main` — nothing left uncommitted from this session (the only local diff is `wc2026.db`, an incidental dev-server data refresh, deliberately left out of every commit per the existing convention).
+
 ## Left to do
 
 1. ~~Finish verifying `odds_api.py` against a real Odds API key~~ — **done 2026-07-20**. Real key in `backend/.env`, live-verified, 3 real bugs found and fixed (see above). Local dev DB (`wc2026.db`) migrated in place (`over_1_5_pct` → `over_3_5_pct`, 0 rows lost — table was still empty pre-fix).
@@ -120,6 +138,6 @@ Working from Tyler's own screenshots this time (`MLS_problems/Tyler feedback/`),
 9. Stale past-kickoff `NS` fixtures (odds probs never refresh once the live Odds API stops quoting a fixture, since it just drops out of the bulk slate) — noticed during Day 7 item 3 verification, not investigated further. Only matters if/when it's a fixture someone's actually looking at.
 
 ## Open questions for you
-- Separately: want me to look at fixing the suspended API-Football account (also affects WC last-5 stats), or leave it since MLS no longer depends on it?
+- ~~Fix the suspended API-Football account?~~ — **decided 2026-07-27: leave it**, not worth fixing since MLS doesn't depend on it.
 - Ready to scope any of the still-open items above — empty-state check (item 3), full production smoke test (item 5), or the stale past-kickoff fixtures noticed Day 7 (item 9)?
 - A `tyler` remote (`lgdsbrand/soccer-model.git`) exists locally but is still sitting on a pre-MLS commit (`fb8784d`) — worth pushing `main` there too, or does Tyler pull from `origin`?
