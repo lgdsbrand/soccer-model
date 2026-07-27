@@ -213,6 +213,30 @@ body {
   }
 }
 
+/* MatchCard's weather row (venue + temp/condition + humidity + wind) has
+   five separate flex items competing for a ~335px-wide card on mobile —
+   the default wrap splits it across 2-3 uneven, cramped-looking lines.
+   Force one line with a horizontal-scroll fallback instead (same pattern
+   as the standings table), shrinking fonts/gaps so real fixtures fit
+   without ever needing to actually scroll. !important overrides the
+   row's inline flexWrap/gap. */
+@media (max-width: 480px) {
+  .weather-row {
+    flex-wrap: nowrap !important;
+    gap: 3px !important;
+    padding: 0 12px 12px !important;
+    overflow-x: auto;
+  }
+  .weather-row span {
+    font-size: 10px !important;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .weather-row .weather-emoji {
+    font-size: 13px !important;
+  }
+}
+
 .stat-bar {
   height: 6px;
   border-radius: 3px;

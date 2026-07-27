@@ -112,7 +112,7 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
 
       {/* Location + Weather */}
       {(fixture.venue_name || fixture.venue_city || fixture.weather) && (
-        <div style={{ padding: "0 20px 12px", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+        <div className="weather-row" style={{ padding: "0 20px 12px", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
           {(fixture.venue_name || fixture.venue_city) && (
             <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
               📍 {fixture.venue_name || fixture.venue_city}
@@ -122,7 +122,7 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
             <>
               {(fixture.venue_name || fixture.venue_city) && <span style={{ color: "var(--border)" }}>·</span>}
               {weatherStyle === "emoji" ? (
-                <span style={{ fontSize: "18px", lineHeight: 1 }}>{fixture.weather.emoji}</span>
+                <span className="weather-emoji" style={{ fontSize: "18px", lineHeight: 1 }}>{fixture.weather.emoji}</span>
               ) : (
                 <img
                   src={`https://openweathermap.org/img/wn/${fixture.weather.icon}.png`}
@@ -133,8 +133,6 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
               <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
                 {fixture.weather.temperature_c.toFixed(1)}°C, {fixture.weather.description}
               </span>
-              <span style={{ color: "var(--border)" }}>·</span>
-              <span style={{ fontSize: "11px", color: "var(--text-muted)", fontStyle: "italic" }}>Now</span>
               <span style={{ color: "var(--border)" }}>·</span>
               <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>💧 {fixture.weather.humidity}%</span>
               <span style={{ color: "var(--border)" }}>·</span>
