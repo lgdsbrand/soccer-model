@@ -728,8 +728,12 @@ function AttackRatingSection({
         </div>
       )}
       {hasMlsRating && (
-        <div style={{ marginTop: "10px", fontSize: "11px", color: "var(--text-muted)", textAlign: "center" }}>
-          Attack/Defense Strength: xG adjusted for the strength of opponents actually played this season (1.00 = average; lower is better for Defense) — rank out of 30
+        // Shortened from a full sentence, which wrapped 3-4 lines deep on
+        // mobile — "rank out of 30" dropped since the (#N) suffix on each
+        // value already implies it. lineHeight added for the 2-line wraps
+        // that still happen on narrow phones.
+        <div style={{ marginTop: "10px", fontSize: "11px", lineHeight: 1.4, color: "var(--text-muted)", textAlign: "center" }}>
+          Schedule-adjusted xG rating — 1.00 = average, lower is better for Defense
         </div>
       )}
     </div>
