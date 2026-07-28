@@ -1,4 +1,4 @@
-# MLS Section — Build Status (checkpoint: Day 9, weather/power-rank/date-pill/Top-Plays restyle, all pushed to origin/main)
+# MLS Section — Build Status (checkpoint: Day 10, Game History tab redesign, all pushed to origin/main)
 
 Plan file: `C:\Users\denis\.claude\plans\i-m-adding-an-mls-iterative-volcano.md`
 
@@ -124,6 +124,14 @@ Rest of this section is 2026-07-27, working from Tyler's own reference screensho
 - Playwright's `browser_resize` here doesn't map 1:1 to CSS viewport width — confirmed a **1.5x** scale factor this session (requesting 375 produced `window.innerWidth: 562`), different from the **3x** `getBoundingClientRect()` quirk noted Day 7. Always check `window.innerWidth`/`matchMedia(...).matches` directly rather than trusting the requested dimension when testing a specific breakpoint.
 
 All of the above verified live via Playwright (screenshots + console checks) on both MLS and WC pages, desktop and mobile, and pushed to `origin/main` — nothing left uncommitted from this session (the only local diff is `wc2026.db`, an incidental dev-server data refresh, deliberately left out of every commit per the existing convention).
+
+### Day 10 (2026-07-28) — Game History tab redesign
+
+Finished a redesign that had been left uncommitted from the previous session (working tree already had the code, no doc entry existed yet): replaced the old always-both-columns Last-10/Head-to-Head card-list layout (`FormRow`/`HeadToHeadSection` in `MatchCard.tsx`) with a single unified `GameHistorySection` — one compact Date/Matchup/Score table, switched between three tabs (home team / away team / H2H, H2H tab only present when `fixture.head_to_head` is set — MLS only). Matches a reference screenshot Tyler sent from one of his existing MLB products.
+
+- Team names in the table are now abbreviations (`home_code`/`away_code`, from `mls_teams.abbreviation` via ESPN) instead of full names — `backend/app/mls/routers/fixtures.py`'s `_get_mls_last10`/`_get_mls_head_to_head` queries extended to select `ht.abbreviation`/`at.abbreviation`; `Fixture` type in `lib/api.ts` gained optional `home_code`/`away_code` (MLS only, undefined for WC — frontend falls back to full name via `r.home_code ?? r.home_name`). This is what actually fixes mobile: the previous full-team-name version (e.g. "New England Revolution") caused overflow at 375-390px that the removed `.last5-grid`/`.form-team` CSS in `globals.css` had been patching around; the patch is gone now that the real cause (long names in a narrow table column) is fixed at the data layer instead.
+- Verified live via Playwright: MLS match page desktop + mobile (390px, no document overflow, abbreviations render correctly), H2H tab against a real 9-game LAFC/LA Galaxy history (record chips and colored rows correct), WC match page desktop + mobile (zero regression — falls back to full country names since WC never sets `home_code`/`head_to_head`, still labeled "Last 5 Games" not "Last 10"). Zero console errors anywhere. `tsc --noEmit` clean.
+- Committed `a58a93b`, pushed to `origin/main`. `wc2026.db` left out of the commit per the existing convention (incidental dev-server data refresh, not real changes).
 
 ## Left to do
 
