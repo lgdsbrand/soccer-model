@@ -12,7 +12,7 @@ export const mlsApi = {
   fixtures: (params?: string) => apiFetch<Fixture[]>(`/mls/fixtures/${params ? "?" + params : ""}`),
   fixture: (id: number) => apiFetch<FixtureDetail>(`/mls/fixtures/${id}`),
   standings: () => apiFetch<Record<string, MlsStanding[]>>("/mls/standings/"),
-  topPlays: () => apiFetch<MlsTopPlays>("/mls/fixtures/top-plays"),
+  topPlays: () => apiFetch<MlsTopPlaysResponse>("/mls/fixtures/top-plays"),
 };
 
 export interface MlsTopPlay {
@@ -29,6 +29,18 @@ export interface MlsTopPlays {
   btts: MlsTopPlay | null;
   over_1_5: MlsTopPlay | null;
   over_2_5: MlsTopPlay | null;
+}
+
+// One day's worth of Top Plays — `date` is an ET date string (YYYY-MM-DD).
+export interface MlsTopPlaysDay extends MlsTopPlays {
+  date: string;
+}
+
+// The backend scans forward across the next couple weeks and returns one
+// entry per day that actually has plays (empty days skipped), up to 5 days —
+// so the dashboard always has something to show even on a day with no games.
+export interface MlsTopPlaysResponse {
+  days: MlsTopPlaysDay[];
 }
 
 // MLS-only type: conference-based standings, not the group-stage-shaped

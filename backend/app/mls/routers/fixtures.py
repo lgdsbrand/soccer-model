@@ -56,31 +56,18 @@ async def get_mls_fixtures(status: Optional[str] = None, season: Optional[int] =
 @router.get("/top-plays", response_model=dict)
 async def get_mls_top_plays():
     """
-    Dashboard "Top Plays": the single highest-probability match today for
-    BTTS, O1.5, and O2.5 (one per stat). Must be declared before
-    `/{fixture_id}` — otherwise FastAPI tries to parse "top-plays" as the
-    int path param and 422s.
+    Dashboard "Top Plays": the highest-probability match for BTTS, O1.5, and
+    O2.5 (one per stat), scanned across the next several days rather than
+    just today — MLS's 1-2x/week schedule means "today" is very often empty,
+    which used to hide the whole section on a no-games day (bad for a demo).
+    Returns one entry per day that actually has at least one play, skipping
+    empty days entirely, stopping once a handful of populated days are found.
+    Must be declared before `/{fixture_id}` — otherwise FastAPI tries to
+    parse "top-plays" as the int path param and 422s.
     """
-    from app.utils import get_today_bounds_et
+    from app.utils import get_day_bounds_et
 
-    start, end = get_today_bounds_et()
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT f.id as fixture_id, f.date_utc,
-               ht.name as home_name, ht.logo as home_logo,
-               at.name as away_name, at.logo as away_logo,
-               p.btts_pct, p.over_1_5_pct, p.over_2_5_pct
-        FROM mls_fixtures f
-        JOIN mls_teams ht ON f.home_team_id = ht.id
-        JOIN mls_teams at ON f.away_team_id = at.id
-        JOIN mls_match_probs p ON p.fixture_id = f.id
-        WHERE f.date_utc BETWEEN ? AND ?
-    """, (start, end))
-    rows = [dict(r) for r in cur.fetchall()]
-    conn.close()
-
-    def best(field: str):
+    def best(rows: list, field: str):
         candidates = [r for r in rows if r.get(field) is not None]
         if not candidates:
             return None
@@ -95,11 +82,38 @@ async def get_mls_top_plays():
             "value": top[field],
         }
 
-    return {
-        "btts": best("btts_pct"),
-        "over_1_5": best("over_1_5_pct"),
-        "over_2_5": best("over_2_5_pct"),
-    }
+    conn = get_connection()
+    cur = conn.cursor()
+    days = []
+    for offset in range(14):  # scan up to 2 weeks ahead for the next few populated days
+        start, end, date_str = get_day_bounds_et(offset)
+        cur.execute("""
+            SELECT f.id as fixture_id, f.date_utc,
+                   ht.name as home_name, ht.logo as home_logo,
+                   at.name as away_name, at.logo as away_logo,
+                   p.btts_pct, p.over_1_5_pct, p.over_2_5_pct
+            FROM mls_fixtures f
+            JOIN mls_teams ht ON f.home_team_id = ht.id
+            JOIN mls_teams at ON f.away_team_id = at.id
+            JOIN mls_match_probs p ON p.fixture_id = f.id
+            WHERE f.date_utc BETWEEN ? AND ?
+        """, (start, end))
+        rows = [dict(r) for r in cur.fetchall()]
+        if not rows:
+            continue
+
+        day_plays = {
+            "btts": best(rows, "btts_pct"),
+            "over_1_5": best(rows, "over_1_5_pct"),
+            "over_2_5": best(rows, "over_2_5_pct"),
+        }
+        if any(day_plays.values()):
+            days.append({"date": date_str, **day_plays})
+        if len(days) >= 5:
+            break
+    conn.close()
+
+    return {"days": days}
 
 
 @router.get("/{fixture_id}", response_model=dict)
