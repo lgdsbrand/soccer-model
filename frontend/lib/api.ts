@@ -56,6 +56,8 @@ export interface Fixture {
   away_name: string;
   home_logo?: string;
   away_logo?: string;
+  home_code?: string; // MLS only — short team abbreviation (e.g. "NE"), not set by the WC endpoint
+  away_code?: string;
   home_score?: number;
   away_score?: number;
   home_win_pct?: number;

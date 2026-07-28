@@ -244,8 +244,8 @@ def _get_mls_last10(team_id: int) -> list:
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
-        SELECT f.*, ht.name as home_name, ht.logo as home_logo,
-               at.name as away_name, at.logo as away_logo
+        SELECT f.*, ht.name as home_name, ht.logo as home_logo, ht.abbreviation as home_code,
+               at.name as away_name, at.logo as away_logo, at.abbreviation as away_code
         FROM mls_fixtures f
         JOIN mls_teams ht ON f.home_team_id = ht.id
         JOIN mls_teams at ON f.away_team_id = at.id
@@ -267,8 +267,8 @@ def _get_mls_head_to_head(team_a_id: int, team_b_id: int, limit: int = 10) -> li
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
-        SELECT f.*, ht.name as home_name, ht.logo as home_logo,
-               at.name as away_name, at.logo as away_logo
+        SELECT f.*, ht.name as home_name, ht.logo as home_logo, ht.abbreviation as home_code,
+               at.name as away_name, at.logo as away_logo, at.abbreviation as away_code
         FROM mls_fixtures f
         JOIN mls_teams ht ON f.home_team_id = ht.id
         JOIN mls_teams at ON f.away_team_id = at.id

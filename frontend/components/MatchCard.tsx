@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
 import type { Fixture, FixtureDetail, Prediction, TeamSeasonStats, KeyPlayer, LineupEntry, MatchStat, TeamRecord, RecordSplit } from "@/lib/api";
 import { getStatusLabel } from "@/lib/api";
@@ -220,23 +221,17 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
             />
           )}
 
-          {/* Last 5 Form */}
-          {(fixture.home_last5?.length > 0 || fixture.away_last5?.length > 0) && (
-            <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)" }}>
-              <div className="last5-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: "12px" }}>
-                <FormRow teamName={fixture.home_name} results={fixture.home_last5 ?? []} teamId={fixture.home_team_id} />
-                <FormRow teamName={fixture.away_name} results={fixture.away_last5 ?? []} teamId={fixture.away_team_id} />
-              </div>
-            </div>
-          )}
-
-          {/* Head to Head — MLS only; fixture.head_to_head is undefined for WC */}
-          {fixture.head_to_head && fixture.head_to_head.length > 0 && (
-            <HeadToHeadSection
-              results={fixture.head_to_head}
-              homeId={fixture.home_team_id}
+          {/* Last 10 (or Last 5 for WC) / Head to Head — unified tabbed section.
+              H2H tab only appears when fixture.head_to_head is set (MLS only). */}
+          {(fixture.home_last5?.length > 0 || fixture.away_last5?.length > 0 || (fixture.head_to_head?.length ?? 0) > 0) && (
+            <GameHistorySection
+              homeTeamId={fixture.home_team_id}
               homeName={fixture.home_name}
+              homeGames={fixture.home_last5 ?? []}
+              awayTeamId={fixture.away_team_id}
               awayName={fixture.away_name}
+              awayGames={fixture.away_last5 ?? []}
+              headToHead={fixture.head_to_head}
             />
           )}
 
@@ -408,131 +403,156 @@ function FormBadges({ results, teamId }: { results: any[]; teamId: number }) {
   );
 }
 
-function FormRow({ teamName, results, teamId }: { teamName: string; results: any[]; teamId: number }) {
-  const colors = FORM_COLORS;
-  const shown = results.slice(0, 10);
-  return (
-    <div>
-      <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "8px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>{teamName} Last {shown.length}</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-        {shown.map((r, i) => {
-          const isHome = r.home_team_id === teamId;
-          const gs = isHome ? r.home_score : r.away_score;
-          const gc = isHome ? r.away_score : r.home_score;
-          const outcome = gs > gc ? "W" : gs === gc ? "D" : "L";
-          const color = colors[outcome as keyof typeof colors];
-          return (
-            <div key={i} style={{
-              display: "flex", alignItems: "center", gap: "6px",
-              padding: "6px 8px", borderRadius: "6px",
-              backgroundColor: "rgba(255,255,255,0.03)",
-              border: `1px solid ${color}22`,
-            }}>
-              {/* Date */}
-              <span style={{ fontSize: "9px", color: "var(--text-muted)", flexShrink: 0, minWidth: "32px" }}>
-                {r.date_utc ? <LocalDate ts={r.date_utc} short /> : ""}
-              </span>
-
-              {/* W/D/L badge */}
-              <span style={{
-                width: "16px", height: "16px", borderRadius: "3px", flexShrink: 0,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: "9px", fontWeight: 800,
-                backgroundColor: color + "22", color, border: `1px solid ${color}55`,
-              }}>{outcome}</span>
-
-              {/* Home team */}
-              <div className="form-team" style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0, justifyContent: "flex-end" }}>
-                <span style={{ fontSize: "11px", color: "var(--text-secondary)", textAlign: "right" }}>{r.home_name ?? "?"}</span>
-                {r.home_logo && <img src={r.home_logo} alt="" style={{ width: 16, height: 16, objectFit: "contain", flexShrink: 0 }} />}
-              </div>
-
-              {/* Score */}
-              <span style={{ fontSize: "13px", fontWeight: 800, color: "var(--text-primary)", flexShrink: 0, minWidth: "36px", textAlign: "center", fontVariantNumeric: "tabular-nums" }}>
-                {r.home_score ?? "?"}-{r.away_score ?? "?"}
-              </span>
-
-              {/* Away team */}
-              <div className="form-team" style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
-                {r.away_logo && <img src={r.away_logo} alt="" style={{ width: 16, height: 16, objectFit: "contain", flexShrink: 0 }} />}
-                <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{r.away_name ?? "?"}</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function HeadToHeadSection({ results, homeId, homeName, awayName }: {
-  results: any[]; homeId: number; homeName: string; awayName: string;
+// Unified Last-N / Head-to-Head section: 3 tabs (home team / away team / H2H,
+// H2H only present when the caller passes headToHead — MLS only) switch which
+// game list the record-summary and table below are computed from. Replaces
+// the old always-both-columns FormRow/HeadToHeadSection card-list layout with
+// a single compact Date/Matchup/Score table per Tyler's reference screenshot
+// (an existing MLB product of his). Spread/Total columns from that reference
+// are deliberately omitted: odds_api.py only ever stores odds for upcoming
+// (status='NS') fixtures, so there's no real historical spread/total data for
+// any finished game — showing those columns would mean fabricating numbers.
+function GameHistorySection({ homeTeamId, homeName, homeGames, awayTeamId, awayName, awayGames, headToHead }: {
+  homeTeamId: number; homeName: string; homeGames: Fixture[];
+  awayTeamId: number; awayName: string; awayGames: Fixture[];
+  headToHead?: Fixture[];
 }) {
-  // Colors identify the two *current* teams (green = this fixture's home team,
-  // purple = away), consistently across every row regardless of which side
-  // they played on in that historical meeting — unlike FormRow's W/D/L colors,
-  // which judge one team's own results, this section compares two fixed teams
-  // against each other, so it borrows the green/purple home-vs-away language
-  // used elsewhere on the card (WinProbBar, Important Stats) instead.
-  let homeWins = 0, awayWins = 0, draws = 0;
-  for (const r of results) {
-    const homeSideIsHomeTeam = r.home_team_id === homeId;
-    const refGoals = homeSideIsHomeTeam ? r.home_score : r.away_score;
-    const oppGoals = homeSideIsHomeTeam ? r.away_score : r.home_score;
-    if (refGoals > oppGoals) homeWins++;
-    else if (refGoals === oppGoals) draws++;
-    else awayWins++;
+  const hasH2h = (headToHead?.length ?? 0) > 0;
+  const [tab, setTab] = useState<"home" | "away" | "h2h">("home");
+  const activeTab = tab === "h2h" && !hasH2h ? "home" : tab;
+
+  const gameCount = Math.max(homeGames.length, awayGames.length, headToHead?.length ?? 0);
+  const activeGames = activeTab === "home" ? homeGames : activeTab === "away" ? awayGames : (headToHead ?? []);
+  const perspectiveTeamId = activeTab === "home" ? homeTeamId : activeTab === "away" ? awayTeamId : null;
+
+  let recordChips: { label: string; value: string; color: string }[];
+  if (activeTab === "h2h") {
+    let homeWins = 0, awayWins = 0, draws = 0;
+    for (const r of headToHead ?? []) {
+      const homeSideIsHomeTeam = r.home_team_id === homeTeamId;
+      const refGoals = homeSideIsHomeTeam ? r.home_score : r.away_score;
+      const oppGoals = homeSideIsHomeTeam ? r.away_score : r.home_score;
+      if ((refGoals ?? 0) > (oppGoals ?? 0)) homeWins++;
+      else if (refGoals === oppGoals) draws++;
+      else awayWins++;
+    }
+    recordChips = [
+      { label: `${homeName} Wins`, value: String(homeWins), color: "var(--accent-green)" },
+      { label: "Draws", value: String(draws), color: "var(--accent-gold)" },
+      { label: `${awayName} Wins`, value: String(awayWins), color: "var(--accent-purple)" },
+    ];
+  } else {
+    let w = 0, d = 0, l = 0;
+    for (const r of activeGames) {
+      const isHome = r.home_team_id === perspectiveTeamId;
+      const gs = isHome ? r.home_score : r.away_score;
+      const gc = isHome ? r.away_score : r.home_score;
+      if ((gs ?? 0) > (gc ?? 0)) w++; else if (gs === gc) d++; else l++;
+    }
+    recordChips = [
+      { label: "Won", value: String(w), color: FORM_COLORS.W },
+      { label: "Drawn", value: String(d), color: FORM_COLORS.D },
+      { label: "Lost", value: String(l), color: FORM_COLORS.L },
+    ];
   }
 
+  const tabs: { key: "home" | "away" | "h2h"; label: string }[] = [
+    { key: "home", label: homeName },
+    { key: "away", label: awayName },
+    ...(hasH2h ? [{ key: "h2h" as const, label: "H2H" }] : []),
+  ];
+
   return (
-    <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)" }}>
-      <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px", fontWeight: 600 }}>HEAD TO HEAD</div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "14px" }}>
-        <StatChip label={`${homeName} Wins`} value={String(homeWins)} color="var(--accent-green)" />
-        <StatChip label="Draws" value={String(draws)} color="var(--accent-gold)" />
-        <StatChip label={`${awayName} Wins`} value={String(awayWins)} color="var(--accent-purple)" />
+    <div style={{ borderTop: "1px solid var(--border)" }}>
+      <div style={{ padding: "16px 20px 0", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+        <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+          {gameCount > 0 ? `Last ${gameCount} Games` : "Game History"}
+        </div>
+        <div className="game-history-tabs" style={{ display: "flex", gap: "6px", overflowX: "auto" }}>
+          {tabs.map(t => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              style={{
+                fontSize: "11px", fontWeight: 700, padding: "5px 10px", borderRadius: "999px",
+                border: `1px solid ${activeTab === t.key ? "var(--accent-purple)" : "var(--border)"}`,
+                backgroundColor: activeTab === t.key ? "rgba(124,92,252,0.15)" : "transparent",
+                color: activeTab === t.key ? "var(--accent-purple)" : "var(--text-muted)",
+                cursor: "pointer", flexShrink: 0, maxWidth: "130px",
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-        {results.map((r, i) => {
-          const homeSideColor = r.home_team_id === homeId ? "var(--accent-green)" : "var(--accent-purple)";
-          const awaySideColor = r.away_team_id === homeId ? "var(--accent-green)" : "var(--accent-purple)";
-          const homeSideWon = (r.home_score ?? 0) > (r.away_score ?? 0);
-          const awaySideWon = (r.away_score ?? 0) > (r.home_score ?? 0);
-          return (
-            <div key={i} style={{
-              display: "flex", alignItems: "center", gap: "6px",
-              padding: "6px 8px", borderRadius: "6px",
-              backgroundColor: "rgba(255,255,255,0.03)",
-              border: "1px solid var(--border)",
-            }}>
-              {/* Date */}
-              <span style={{ fontSize: "9px", color: "var(--text-muted)", flexShrink: 0, minWidth: "62px" }}>
-                {r.date_utc ? <LocalDate ts={r.date_utc} /> : ""}
-              </span>
 
-              {/* Home side (whichever team actually hosted that meeting) */}
-              <div className="form-team" style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0, justifyContent: "flex-end" }}>
-                <span style={{ fontSize: "11px", color: homeSideColor, fontWeight: homeSideWon ? 800 : 500, textAlign: "right" }}>{r.home_name ?? "?"}</span>
-                {r.home_logo && <img src={r.home_logo} alt="" style={{ width: 16, height: 16, objectFit: "contain", flexShrink: 0 }} />}
-              </div>
+      <div style={{ padding: "14px 20px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "14px" }}>
+          {recordChips.map(c => <StatChip key={c.label} label={c.label} value={c.value} color={c.color} />)}
+        </div>
 
-              {/* Score */}
-              <span style={{ fontSize: "13px", fontWeight: 800, color: "var(--text-primary)", flexShrink: 0, minWidth: "36px", textAlign: "center", fontVariantNumeric: "tabular-nums" }}>
-                {r.home_score ?? "?"}-{r.away_score ?? "?"}
-              </span>
-
-              {/* Away side */}
-              <div className="form-team" style={{ flex: 1, display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
-                {r.away_logo && <img src={r.away_logo} alt="" style={{ width: 16, height: 16, objectFit: "contain", flexShrink: 0 }} />}
-                <span style={{ fontSize: "11px", color: awaySideColor, fontWeight: awaySideWon ? 800 : 500 }}>{r.away_name ?? "?"}</span>
-              </div>
-            </div>
-          );
-        })}
+        {activeGames.length === 0 ? (
+          <div style={{ fontSize: "12px", color: "var(--text-muted)", textAlign: "center", padding: "12px 0" }}>No games yet</div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th style={{ ...thStyle, textAlign: "left" }}>Date</th>
+                  <th style={{ ...thStyle, textAlign: "left" }}>Matchup</th>
+                  <th style={{ ...thStyle, textAlign: "right" }}>Score</th>
+                </tr>
+              </thead>
+              <tbody>
+                {activeGames.map((r, i) => {
+                  let homeColor = "var(--text-secondary)", awayColor = "var(--text-secondary)";
+                  let homeWeight = 500, awayWeight = 500;
+                  if (activeTab === "h2h") {
+                    homeColor = r.home_team_id === homeTeamId ? "var(--accent-green)" : "var(--accent-purple)";
+                    awayColor = r.away_team_id === homeTeamId ? "var(--accent-green)" : "var(--accent-purple)";
+                    homeWeight = (r.home_score ?? 0) > (r.away_score ?? 0) ? 800 : 500;
+                    awayWeight = (r.away_score ?? 0) > (r.home_score ?? 0) ? 800 : 500;
+                  } else {
+                    const isHome = r.home_team_id === perspectiveTeamId;
+                    const gs = isHome ? r.home_score : r.away_score;
+                    const gc = isHome ? r.away_score : r.home_score;
+                    const outcome = (gs ?? 0) > (gc ?? 0) ? "W" : gs === gc ? "D" : "L";
+                    const color = FORM_COLORS[outcome];
+                    if (isHome) { homeColor = color; homeWeight = 800; } else { awayColor = color; awayWeight = 800; }
+                  }
+                  return (
+                    <tr key={i} style={{ borderTop: "1px solid var(--border)" }}>
+                      <td style={{ ...tdStyle, color: "var(--text-muted)", fontSize: "11px", whiteSpace: "nowrap" }}>
+                        {r.date_utc ? <LocalDate ts={r.date_utc} short /> : ""}
+                      </td>
+                      <td style={{ ...tdStyle, whiteSpace: "nowrap" }} title={`${r.home_name ?? "?"} @ ${r.away_name ?? "?"}`}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                          {r.home_logo && <img src={r.home_logo} alt="" style={{ width: 14, height: 14, objectFit: "contain", flexShrink: 0 }} />}
+                          <span style={{ color: homeColor, fontWeight: homeWeight, fontSize: "12px" }}>{r.home_code ?? r.home_name ?? "?"}</span>
+                          <span style={{ color: "var(--text-muted)", fontSize: "11px" }}>@</span>
+                          {r.away_logo && <img src={r.away_logo} alt="" style={{ width: 14, height: 14, objectFit: "contain", flexShrink: 0 }} />}
+                          <span style={{ color: awayColor, fontWeight: awayWeight, fontSize: "12px" }}>{r.away_code ?? r.away_name ?? "?"}</span>
+                        </div>
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 800, fontSize: "13px", whiteSpace: "nowrap" }}>
+                        {r.home_score ?? "?"}-{r.away_score ?? "?"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
+const thStyle = { fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.5px", padding: "0 6px 8px", fontWeight: 700 as const };
+const tdStyle = { padding: "8px 6px" };
 
 function TeamRecordsSection({ homeName, awayName, homeRecord, awayRecord }: {
   homeName: string; awayName: string; homeRecord: TeamRecord; awayRecord: TeamRecord;

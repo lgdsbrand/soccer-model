@@ -190,29 +190,6 @@ body {
   }
 }
 
-/* MatchCard's Last-10 form section puts the home and away team's row lists
-   side by side in a 2-column grid — on mobile that halves an already-narrow
-   card down to ~150px per column, so team names ("New York Red Bulls")
-   wrap 3-4 lines deep. Worse, each column is an independent grid item, so
-   uneven wrap heights make the two lists drift out of alignment with each
-   other by the 10th row. Stack the columns instead of squeezing them side
-   by side, and clip names with an ellipsis (same treatment as FixtureRow)
-   so a row is always exactly one line — used in both FormRow and
-   HeadToHeadSection via the shared .form-team class. !important overrides
-   the grid's inline gridTemplateColumns, which a normal rule can't touch. */
-@media (max-width: 480px) {
-  .last5-grid {
-    grid-template-columns: 1fr !important;
-  }
-  .form-team span {
-    display: inline-block;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
 /* MatchCard's weather row (venue + temp/condition + humidity + wind) has
    five separate flex items competing for a ~335px-wide card on mobile —
    the default wrap splits it across 2-3 uneven, cramped-looking lines.
