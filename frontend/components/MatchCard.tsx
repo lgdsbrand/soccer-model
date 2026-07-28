@@ -209,12 +209,16 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
               awayAttack={fixture.away_attack_rating}
               homeGoals={fixture.home_goals_per_game}
               awayGoals={fixture.away_goals_per_game}
-              homeXg={fixture.home_xg_rating}
-              awayXg={fixture.away_xg_rating}
+              // WC's Dixon-Coles xg_rating takes priority; falls back to MLS's
+              // real per-game xG (fixture.home_team_stats.xg) when absent —
+              // the two never both exist for the same fixture, so this is
+              // just "use whichever league actually set one."
+              homeXg={fixture.home_xg_rating ?? fixture.home_team_stats?.xg}
+              awayXg={fixture.away_xg_rating ?? fixture.away_team_stats?.xg}
               homeGoalsAllowed={fixture.home_goals_allowed_per_game}
               awayGoalsAllowed={fixture.away_goals_allowed_per_game}
-              homeXga={fixture.home_xga_rating}
-              awayXga={fixture.away_xga_rating}
+              homeXga={fixture.home_xga_rating ?? fixture.home_team_stats?.xga}
+              awayXga={fixture.away_xga_rating ?? fixture.away_team_stats?.xga}
               homeTeamStats={fixture.home_team_stats}
               awayTeamStats={fixture.away_team_stats}
               showXg={showXg}

@@ -21,7 +21,10 @@ export default async function MlsMatchDetailPage({ params }: { params: Promise<{
           ← Back to Matches
         </Link>
       </div>
-      <MatchCard fixture={fixture} basePath="/mls/matches" showRecommendedPlay={false} showXg={false} weatherStyle="emoji" />
+      {/* showXg: MLS now has real xG/xGA (from FotMob, same data behind
+          Attack/Defense Strength) — no longer needs to opt out like it did
+          when this was a WC-only Dixon-Coles field. */}
+      <MatchCard fixture={fixture} basePath="/mls/matches" showRecommendedPlay={false} weatherStyle="emoji" />
     </div>
   );
 }
