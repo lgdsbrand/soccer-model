@@ -189,6 +189,9 @@ async def get_mls_fixture_detail(fixture_id: int, background_tasks: BackgroundTa
     fixture["home_team_record"] = _get_mls_team_record(fixture["home_team_id"], fixture["season"])
     fixture["away_team_record"] = _get_mls_team_record(fixture["away_team_id"], fixture["season"])
 
+    fixture["home_scoring_trends"] = _get_mls_scoring_trends(fixture["home_team_id"], fixture["season"])
+    fixture["away_scoring_trends"] = _get_mls_scoring_trends(fixture["away_team_id"], fixture["season"])
+
     fixture["home_team_stats"] = _get_mls_team_season_stats(fixture["home_name"])
     fixture["away_team_stats"] = _get_mls_team_season_stats(fixture["away_name"])
 
@@ -344,6 +347,41 @@ def _get_mls_team_record(team_id: int, season: int) -> dict:
         "points": home_record["points"] + away_record["points"],
     }
     return {"all": all_record, "home": home_record, "away": away_record}
+
+
+def _scoring_trends_from_rows(rows: list) -> dict:
+    """BTTS / Over 1.5 / Over 2.5 hit-count + pct from a list of finished
+    mls_fixtures rows (home_score/away_score only) — perspective-agnostic,
+    unlike _record_from_rows, since these markets don't depend on which
+    side the team played, just the final score."""
+    played = len(rows)
+    btts = sum(1 for r in rows if r["home_score"] > 0 and r["away_score"] > 0)
+    over_1_5 = sum(1 for r in rows if (r["home_score"] + r["away_score"]) > 1.5)
+    over_2_5 = sum(1 for r in rows if (r["home_score"] + r["away_score"]) > 2.5)
+
+    def _stat(count: int) -> dict:
+        return {"count": count, "pct": round(count / played * 100) if played else None}
+
+    return {"played": played, "btts": _stat(btts), "over_1_5": _stat(over_1_5), "over_2_5": _stat(over_2_5)}
+
+
+def _get_mls_scoring_trends(team_id: int, season: int) -> dict:
+    """Season-total BTTS/O1.5/O2.5 hit rates for a team, computed directly
+    from mls_fixtures (real finished results only) — distinct from the
+    odds-derived per-fixture mls_match_probs.btts_pct/over_*_pct shown as a
+    chip near the top of the card, which is a single combined probability
+    for THIS match, not a season history. Single query (home OR away),
+    unlike _get_mls_team_record's two queries, since these markets need no
+    home/away split."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT home_score, away_score FROM mls_fixtures
+        WHERE (home_team_id = ? OR away_team_id = ?) AND season = ? AND status = 'FT'
+    """, (team_id, team_id, season))
+    rows = cur.fetchall()
+    conn.close()
+    return _scoring_trends_from_rows(rows)
 
 
 def _get_mls_team_season_stats(team_name: str) -> Optional[dict]:

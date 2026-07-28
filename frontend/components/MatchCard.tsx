@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import type { Fixture, FixtureDetail, Prediction, TeamSeasonStats, KeyPlayer, LineupEntry, MatchStat, TeamRecord, RecordSplit } from "@/lib/api";
+import type { Fixture, FixtureDetail, Prediction, TeamSeasonStats, KeyPlayer, LineupEntry, MatchStat, TeamRecord, RecordSplit, ScoringTrends } from "@/lib/api";
 import { getStatusLabel } from "@/lib/api";
 import { LocalDate, LocalTime } from "@/components/LocalTime";
 
@@ -246,6 +246,21 @@ export default function MatchCard({ fixture, compact, basePath = "/matches", sho
               awayName={fixture.away_name}
               homeRecord={fixture.home_team_record}
               awayRecord={fixture.away_team_record}
+            />
+          )}
+
+          {/* Scoring Trends — MLS only, computed from real season results (not
+              the odds-derived "BTTS"/"O1.5 Goals" chips near the top of the
+              card, which are a single combined probability for THIS match
+              only — deliberately labeled "SCORING TRENDS" here, not "BTTS",
+              to avoid the two being confused). fixture.home_scoring_trends
+              undefined for WC. */}
+          {fixture.home_scoring_trends && fixture.away_scoring_trends && (
+            <ScoringTrendsSection
+              homeName={fixture.home_name}
+              awayName={fixture.away_name}
+              homeTrends={fixture.home_scoring_trends}
+              awayTrends={fixture.away_scoring_trends}
             />
           )}
 
@@ -609,6 +624,72 @@ function TeamRecordsSection({ homeName, awayName, homeRecord, awayRecord }: {
       })}
       <div style={{ marginTop: "10px", fontSize: "11px", color: "var(--text-muted)", textAlign: "center" }}>
         Record shown as Won-Drawn-Lost
+      </div>
+    </div>
+  );
+}
+
+function ScoringTrendsSection({ homeName, awayName, homeTrends, awayTrends }: {
+  homeName: string; awayName: string; homeTrends: ScoringTrends; awayTrends: ScoringTrends;
+}) {
+  const sentences = (name: string, t: ScoringTrends): string[] => {
+    if (t.played === 0) return [];
+    return [
+      `Both teams have scored in ${t.btts.count} of ${t.played} (${t.btts.pct}%) of ${name}'s games this season.`,
+      `${name} have gone over 1.5 goals in ${t.over_1_5.count} of ${t.played} (${t.over_1_5.pct}%) games this season.`,
+      `${name} have gone over 2.5 goals in ${t.over_2_5.count} of ${t.played} (${t.over_2_5.pct}%) games this season.`,
+    ];
+  };
+
+  const tableRows = [
+    { label: "BTTS", home: homeTrends.btts, away: awayTrends.btts },
+    { label: "Over 1.5", home: homeTrends.over_1_5, away: awayTrends.over_1_5 },
+    { label: "Over 2.5", home: homeTrends.over_2_5, away: awayTrends.over_2_5 },
+  ];
+
+  const cellText = (played: number, stat: { count: number; pct: number | null }) =>
+    played > 0 ? `${stat.count}/${played} (${stat.pct}%)` : "—";
+
+  return (
+    <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)" }}>
+      <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px", fontWeight: 600 }}>SCORING TRENDS</div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "16px" }}>
+        {[{ name: homeName, trends: homeTrends }, { name: awayName, trends: awayTrends }].map(({ name, trends }) => (
+          <div key={name}>
+            <div style={{ fontSize: "12px", fontWeight: 700, marginBottom: "8px", color: "var(--text-secondary)" }}>{name}</div>
+            {trends.played === 0 ? (
+              <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0, fontStyle: "italic" }}>No games played yet this season</p>
+            ) : (
+              sentences(name, trends).map((s, i) => (
+                <p key={i} style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5, margin: i === 0 ? 0 : "6px 0 0" }}>{s}</p>
+              ))
+            )}
+          </div>
+        ))}
+      </div>
+
+      {tableRows.map(({ label, home, away }) => {
+        const total = home.count + away.count;
+        const hPct = total > 0 ? (home.count / total) * 100 : 50;
+        const aPct = 100 - hPct;
+        return (
+          <div key={label} style={{ marginBottom: "10px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+              <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--accent-green)" }}>{cellText(homeTrends.played, home)}</span>
+              <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{label}</span>
+              <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--accent-purple)" }}>{cellText(awayTrends.played, away)}</span>
+            </div>
+            <div style={{ height: "6px", borderRadius: "3px", overflow: "hidden", display: "flex" }}>
+              <div style={{ width: `${hPct}%`, backgroundColor: "var(--accent-green)" }} />
+              <div style={{ width: `${aPct}%`, backgroundColor: "var(--accent-purple)" }} />
+            </div>
+          </div>
+        );
+      })}
+
+      <div style={{ marginTop: "10px", fontSize: "11px", color: "var(--text-muted)", textAlign: "center" }}>
+        Hit-rate stats from this season's finished matches
       </div>
     </div>
   );

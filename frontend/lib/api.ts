@@ -102,6 +102,8 @@ export interface FixtureDetail extends Fixture {
   head_to_head?: Fixture[]; // MLS only — not set by the WC endpoint
   home_team_record?: TeamRecord; // MLS only — not set by the WC endpoint
   away_team_record?: TeamRecord;
+  home_scoring_trends?: ScoringTrends; // MLS only — not set by the WC endpoint
+  away_scoring_trends?: ScoringTrends;
   home_power_rank?: number; // MLS only — not set by the WC endpoint
   away_power_rank?: number;
   lineups?: LineupEntry[];
@@ -137,6 +139,21 @@ export interface TeamRecord {
   all: RecordSplit;
   home: RecordSplit;
   away: RecordSplit;
+}
+
+// Real-results season hit-rates for BTTS/Over-goals markets — distinct from
+// Prediction's btts_pct/over_*_pct, which are odds-derived for one upcoming
+// fixture, not a season history.
+export interface ScoringStat {
+  count: number;
+  pct: number | null;
+}
+
+export interface ScoringTrends {
+  played: number;
+  btts: ScoringStat;
+  over_1_5: ScoringStat;
+  over_2_5: ScoringStat;
 }
 
 export interface Weather {
