@@ -336,7 +336,7 @@ def _get_mls_team_season_stats(team_name: str) -> Optional[dict]:
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(
-        """SELECT corners, shots, fouls, xg, xga, attack_rating, defense_rating, attack_rank, defense_rank
+        """SELECT corners, shots, fouls, attack_rating, defense_rating, attack_rank, defense_rank
            FROM mls_team_season_stats WHERE team_name = ?""",
         (team_name,),
     )

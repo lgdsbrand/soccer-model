@@ -1,4 +1,4 @@
-# MLS Section — Build Status (checkpoint: Day 11, Attack/Defense Rating + ranking, all pushed to origin/main)
+# MLS Section — Build Status (checkpoint: Day 11, Attack/Defense Strength shipped, Goals/xG rows reverted after a production incident — see below)
 
 Plan file: `C:\Users\denis\.claude\plans\i-m-adding-an-mls-iterative-volcano.md`
 
@@ -149,6 +149,22 @@ Tyler sent over a methodology (screenshots in `MLS_fromPicsFromTyler/IMG_4986-49
 - Verified live via Playwright on an MLS match page (desktop + 390px mobile, no overflow) with real refreshed data — rows render correctly with rank, caption explains the scale.
 - Noticed but did not touch: `mls_team_season_stats` has a handful of stale orphaned rows under old un-mapped FotMob team names (e.g. "DC United" instead of "D.C. United") — leftover from before `FOTMOB_NAME_TO_MLS_NAME` covered every team, harmless since the app only ever queries by the corrected `mls_teams.name`. Worth a cleanup pass sometime but out of scope here.
 - **Extended Goals/xG and Goals Allowed/xGA to MLS** — these rows already existed in `AttackRatingSection` (`showXg` prop) but MLS opted out (`showXg={false}` in `app/mls/matches/[id]/page.tsx`) since it had no real xG before. Now that it does (same `mls_team_season_stats.xg`/`xga` columns behind Attack/Defense Strength), removed that override and wired `homeXg`/`awayXg`/`homeXga`/`awayXga` to fall back to `fixture.home_team_stats?.xg`/`.xga` when WC's Dixon-Coles `xg_rating`/`xga_rating` fields aren't set (the two never coexist on one fixture). MLS match cards now show "Goals / xG" and "Goals Allowed / xGA" same as WC. Verified live both leagues, zero regression on WC (identical numbers to before), zero console errors.
+
+### Production incident (2026-07-28) — Goals/xG reverted, root cause NOT found
+
+Shortly after the Goals/xG commit (`35f9e19`) went live on Render, the backend became completely unresponsive — every endpoint, including the trivial root route, hung indefinitely (60-120s+, no response) rather than returning any error. Confirmed independently by the client from their own browser, not just a local/sandbox network issue.
+
+**What we know:**
+- The client rolled the Render service back via its dashboard multiple times over the course of the incident; each rollback restored service, confirmed by sustained health-checking (15 consecutive checks over ~5 min, all fast/healthy) — but a subsequent attempt to redeploy latest `main` (to restore Goals/xG) reproduced the same hang within ~2 minutes, on the fixture-detail endpoint specifically (root stayed responsive that time).
+- Render's dashboard "Events" tab showed every deploy as "live" (build succeeded) — the hang happened at *runtime*, sometime after boot, not at build/startup.
+- **No real server logs were ever obtained** — only Render's Events tab (build status, not runtime output) was available. The actual error/traceback that would confirm root cause was never seen.
+- Discovered along the way: a manual "Rollback" in Render's dashboard appears to pin the service and stop auto-deploying on new pushes — a plain `git push` after a rollback did **not** trigger a new deploy; a "Manual Deploy → deploy latest commit" click was required. Client asked about re-enabling normal auto-deploy-on-push behavior afterward — worth confirming that setting (Settings → Build & Deploy → Auto-Deploy) before trusting pushes to reach Render again.
+
+**What we did about it:** rather than keep guessing, reverted to the last version proven stable under sustained monitoring — backend's `_get_mls_team_season_stats` SELECT no longer includes `xg`/`xga` (back to exactly `b5a5207`'s query), and MLS's match-detail page has `showXg={false}` again (Goals/Goals Allowed show as plain numbers, no dangling "/—"). Attack/Defense Strength — which uses the *same* underlying xg/xga data via a completely separate code path (`mls_team_season_stats.attack_rating`/`defense_rating`, computed and stored server-side, not fetched live) — was **not** affected by any of this and has been live and stable throughout.
+
+**Genuinely unresolved — flag before touching this again:**
+1. Whether `35f9e19` (adding 2 columns to one existing SELECT) was actually the cause is **unconfirmed**. That specific change is small enough that it's a plausible-but-unproven suspect — it's equally possible the hang was a Render free-tier/infra issue coinciding with several back-to-back deploys that day, or something in the pre-existing startup refresh chain (`_initial_seed_mls` → sequential awaited HTTP calls to ESPN/Odds API/FotMob, all using blocking `sqlite3` calls with no `run_in_executor`, on a single-threaded event loop — a long-held DB lock during that startup sequence could plausibly hang *unrelated* requests too, and this pattern predates today's changes).
+2. Before re-attempting Goals/xG for MLS: get real Render runtime logs (not just the Events tab) during a redeploy, watched live, so an actual traceback can be captured instead of inferring from timeouts alone.
 
 ## Left to do
 
