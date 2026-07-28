@@ -106,15 +106,29 @@ async def lifespan(app: FastAPI):
     scheduler.start()
     print("Scheduler started (WC hourly, MLS every 12h + conditional Monte Carlo)")
 
-    # Initial data load + goal scorer sync (non-blocking)
-    asyncio.create_task(_initial_seed())
-    asyncio.create_task(_initial_seed_mls())
-    asyncio.create_task(_sync_goals_on_startup())
+    # Initial data load + goal scorer sync (non-blocking overall, but run
+    # sequentially rather than as three concurrent tasks — all three do
+    # multi-step writes to the same SQLite file interleaved with slow
+    # external API calls, and running them concurrently let one long-held
+    # write transaction outlast the other's busy_timeout, surfacing as a
+    # real "database is locked" OperationalError seen in production logs
+    # (2026-07-28 incident) rather than a config gap — busy_timeout was
+    # already set to 10s in app/database.py's get_connection().
+    asyncio.create_task(_run_startup_refreshes())
 
     yield
 
     # Shutdown
     scheduler.shutdown()
+
+
+async def _run_startup_refreshes():
+    """Runs the three startup data-refresh routines one after another rather
+    than as concurrent tasks — see the comment at the call site in
+    lifespan() for why (SQLite write-lock contention between them)."""
+    await _initial_seed()
+    await _initial_seed_mls()
+    await _sync_goals_on_startup()
 
 
 async def _sync_goals_on_startup():
