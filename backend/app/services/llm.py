@@ -52,7 +52,14 @@ def _groq_complete(prompt: str, model: str = "llama-3.1-8b-instant", max_tokens:
         return None
     try:
         from groq import Groq
-        client = Groq(api_key=settings.groq_api_key)
+        # This is a synchronous, blocking call made directly from async
+        # request handlers (get_style_of_play, get_key_players, etc.) without
+        # run_in_executor — with no client timeout, a slow/unresponsive Groq
+        # API freezes the whole single-threaded event loop for every
+        # concurrent request, not just this one. 10s bounds that blast
+        # radius; the existing except-and-fall-back-to-None below still
+        # applies either way.
+        client = Groq(api_key=settings.groq_api_key, timeout=10.0)
         resp = client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": prompt}],
@@ -74,7 +81,8 @@ def _gemini_complete(prompt: str, max_tokens: int = 800) -> Optional[str]:
         model = genai.GenerativeModel("gemini-2.0-flash")
         resp = model.generate_content(
             prompt,
-            generation_config={"max_output_tokens": max_tokens, "temperature": 0.7}
+            generation_config={"max_output_tokens": max_tokens, "temperature": 0.7},
+            request_options={"timeout": 10},
         )
         return resp.text.strip()
     except Exception as e:
