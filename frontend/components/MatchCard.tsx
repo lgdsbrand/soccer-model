@@ -631,18 +631,22 @@ function AttackRatingSection({
       label: "Attack Strength", homeVal: homeAttack, awayVal: awayAttack,
       homeText: homeAttack ?? "—", awayText: awayAttack ?? "—",
     },
-    // MLS only — opponent-adjusted rating derived from real xG data (see
-    // mls_team_stats.py's _compute_ratings), distinct from WC's Attack
+    // MLS only — opponent-adjusted strength rating derived from real xG data
+    // (see mls_team_stats.py's _compute_ratings), distinct from WC's Attack
     // Strength above (Dixon-Coles derived, 0-100 scale) which MLS doesn't
-    // have. Takes the same "top of Important Stats" slot for MLS matches
-    // since Attack Strength is always absent there.
+    // have. Labeled the same as WC's row per the client's own wording ("attack
+    // and defense strength and ranking") — the two never appear on the same
+    // page (WC never sets attack_rating/defense_rating, MLS never sets
+    // homeAttack/awayAttack), but see hasAttackStrength/hasMlsRating below:
+    // they're told apart by which *data* is present, not by this shared label
+    // text, so the two captions can't cross-fire.
     {
-      label: "Attack Rating", homeVal: homeTeamStats?.attack_rating, awayVal: awayTeamStats?.attack_rating,
+      label: "Attack Strength", homeVal: homeTeamStats?.attack_rating, awayVal: awayTeamStats?.attack_rating,
       homeText: fmtRating(homeTeamStats?.attack_rating, homeTeamStats?.attack_rank),
       awayText: fmtRating(awayTeamStats?.attack_rating, awayTeamStats?.attack_rank),
     },
     {
-      label: "Defense Rating", homeVal: homeTeamStats?.defense_rating, awayVal: awayTeamStats?.defense_rating,
+      label: "Defense Strength", homeVal: homeTeamStats?.defense_rating, awayVal: awayTeamStats?.defense_rating,
       homeText: fmtRating(homeTeamStats?.defense_rating, homeTeamStats?.defense_rank),
       awayText: fmtRating(awayTeamStats?.defense_rating, awayTeamStats?.defense_rank),
     },
@@ -676,8 +680,12 @@ function AttackRatingSection({
 
   if (!rows.length) return null;
 
-  const hasAttackStrength = rows.some(r => r.label === "Attack Strength");
-  const hasMlsRating = rows.some(r => r.label === "Attack Rating" || r.label === "Defense Rating");
+  // Keyed off the actual data (not the rendered label, which both WC and MLS
+  // now share as "Attack/Defense Strength") so the two captions below can't
+  // cross-fire onto the wrong league's row.
+  const hasAttackStrength = homeAttack != null || awayAttack != null;
+  const hasMlsRating = homeTeamStats?.attack_rating != null || awayTeamStats?.attack_rating != null ||
+    homeTeamStats?.defense_rating != null || awayTeamStats?.defense_rating != null;
 
   return (
     <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)" }}>
@@ -717,7 +725,7 @@ function AttackRatingSection({
       )}
       {hasMlsRating && (
         <div style={{ marginTop: "10px", fontSize: "11px", color: "var(--text-muted)", textAlign: "center" }}>
-          Attack/Defense Rating: xG adjusted for the strength of opponents actually played this season (1.00 = average; lower is better for Defense) — rank out of 30
+          Attack/Defense Strength: xG adjusted for the strength of opponents actually played this season (1.00 = average; lower is better for Defense) — rank out of 30
         </div>
       )}
     </div>
