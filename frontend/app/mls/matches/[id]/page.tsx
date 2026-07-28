@@ -21,14 +21,11 @@ export default async function MlsMatchDetailPage({ params }: { params: Promise<{
           ← Back to Matches
         </Link>
       </div>
-      {/* showXg forced false: reverted 2026-07-28 after the xg/xga backend
-          change (35f9e19) was implicated in a production incident (never
-          confirmed as the actual root cause — no server logs were available
-          to verify). MLS's home/away_team_stats no longer includes xg/xga
-          (reverted in fixtures.py) so this now matches what the backend
-          actually returns. Re-enable only alongside re-adding that backend
-          SELECT, and only after finding the real root cause. */}
-      <MatchCard fixture={fixture} basePath="/mls/matches" showRecommendedPlay={false} showXg={false} weatherStyle="emoji" />
+      {/* showXg: MLS has real xG/xGA (FotMob, same data behind Attack/Defense
+          Strength). Re-attempted 2026-07-28 after a prior try was implicated
+          (never confirmed) in a production incident — see
+          MLS_BUILD_STATUS.md's incident section for what's known. */}
+      <MatchCard fixture={fixture} basePath="/mls/matches" showRecommendedPlay={false} weatherStyle="emoji" />
     </div>
   );
 }
