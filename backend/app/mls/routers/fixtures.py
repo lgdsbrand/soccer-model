@@ -183,9 +183,11 @@ async def get_mls_fixture_detail(fixture_id: int, background_tasks: BackgroundTa
 
     # Goals/Goals Allowed per game — real observed averages from ESPN standings,
     # the same arithmetic WC uses for its own goals_per_game (see predictions.py's
-    # get_attack_xg_ratings: gf/played, ga/played). No xg_rating/xga_rating
-    # counterpart for MLS — those are WC's fitted Dixon-Coles attack/defense
-    # params re-expressed, not real xG data, and there's no such model for MLS.
+    # get_attack_xg_ratings: gf/played, ga/played). MLS has no Dixon-Coles
+    # attack_rating/xg_rating/xga_rating (that's WC's fitted Poisson model
+    # re-expressed) — but it does have its own opponent-adjusted Attack/Defense
+    # Rating from real xG data, folded into home/away_team_stats below (see
+    # mls_team_stats.py's _compute_ratings) rather than reusing WC's field names.
     fixture["home_goals_per_game"], fixture["home_goals_allowed_per_game"] = \
         _get_mls_goals_per_game(fixture["home_team_id"])
     fixture["away_goals_per_game"], fixture["away_goals_allowed_per_game"] = \
@@ -334,12 +336,13 @@ def _get_mls_team_season_stats(team_name: str) -> Optional[dict]:
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(
-        "SELECT corners, shots, fouls FROM mls_team_season_stats WHERE team_name = ?",
+        """SELECT corners, shots, fouls, attack_rating, defense_rating, attack_rank, defense_rank
+           FROM mls_team_season_stats WHERE team_name = ?""",
         (team_name,),
     )
     row = cur.fetchone()
     conn.close()
-    if not row or (row["corners"] is None and row["shots"] is None and row["fouls"] is None):
+    if not row or all(row[k] is None for k in row.keys()):
         return None
     return dict(row)
 

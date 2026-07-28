@@ -624,11 +624,27 @@ function AttackRatingSection({
   showXg?: boolean;
 }) {
   const fmt = (v?: number) => v != null ? v.toFixed(2) : "—";
+  const fmtRating = (v?: number, rank?: number) => v != null ? `${v.toFixed(2)}${rank != null ? ` (#${rank})` : ""}` : "—";
 
   const rows = [
     {
       label: "Attack Strength", homeVal: homeAttack, awayVal: awayAttack,
       homeText: homeAttack ?? "—", awayText: awayAttack ?? "—",
+    },
+    // MLS only — opponent-adjusted rating derived from real xG data (see
+    // mls_team_stats.py's _compute_ratings), distinct from WC's Attack
+    // Strength above (Dixon-Coles derived, 0-100 scale) which MLS doesn't
+    // have. Takes the same "top of Important Stats" slot for MLS matches
+    // since Attack Strength is always absent there.
+    {
+      label: "Attack Rating", homeVal: homeTeamStats?.attack_rating, awayVal: awayTeamStats?.attack_rating,
+      homeText: fmtRating(homeTeamStats?.attack_rating, homeTeamStats?.attack_rank),
+      awayText: fmtRating(awayTeamStats?.attack_rating, awayTeamStats?.attack_rank),
+    },
+    {
+      label: "Defense Rating", homeVal: homeTeamStats?.defense_rating, awayVal: awayTeamStats?.defense_rating,
+      homeText: fmtRating(homeTeamStats?.defense_rating, homeTeamStats?.defense_rank),
+      awayText: fmtRating(awayTeamStats?.defense_rating, awayTeamStats?.defense_rank),
     },
     showXg ? {
       label: "Goals / xG", homeVal: homeGoals, awayVal: awayGoals,
@@ -661,6 +677,7 @@ function AttackRatingSection({
   if (!rows.length) return null;
 
   const hasAttackStrength = rows.some(r => r.label === "Attack Strength");
+  const hasMlsRating = rows.some(r => r.label === "Attack Rating" || r.label === "Defense Rating");
 
   return (
     <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)" }}>
@@ -696,6 +713,11 @@ function AttackRatingSection({
       {hasAttackStrength && (
         <div style={{ marginTop: "10px", fontSize: "11px", color: "var(--text-muted)", textAlign: "center" }}>
           Attack Strength on a 0-100 scale
+        </div>
+      )}
+      {hasMlsRating && (
+        <div style={{ marginTop: "10px", fontSize: "11px", color: "var(--text-muted)", textAlign: "center" }}>
+          Attack/Defense Rating: xG adjusted for the strength of opponents actually played this season (1.00 = average; lower is better for Defense) — rank out of 30
         </div>
       )}
     </div>

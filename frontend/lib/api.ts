@@ -215,6 +215,14 @@ export interface TeamSeasonStats {
   corners?: number;
   shots?: number;
   fouls?: number;
+  // MLS only — opponent-adjusted Attack/Defense Rating + 1-30 rank, derived
+  // from real FotMob xG/xGA data. Not set by the WC endpoint (WC's own
+  // attack/xG numbers come from the Fixture-level attack_rating/xg_rating/
+  // xga_rating fields instead — a different, Dixon-Coles-derived metric).
+  attack_rating?: number;
+  defense_rating?: number; // lower is better
+  attack_rank?: number;
+  defense_rank?: number;
 }
 
 export interface Prediction {

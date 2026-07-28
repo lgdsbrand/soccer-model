@@ -1,4 +1,4 @@
-# MLS Section — Build Status (checkpoint: Day 10, Game History tab redesign, all pushed to origin/main)
+# MLS Section — Build Status (checkpoint: Day 11, Attack/Defense Rating + ranking, all pushed to origin/main)
 
 Plan file: `C:\Users\denis\.claude\plans\i-m-adding-an-mls-iterative-volcano.md`
 
@@ -132,6 +132,20 @@ Finished a redesign that had been left uncommitted from the previous session (wo
 - Team names in the table are now abbreviations (`home_code`/`away_code`, from `mls_teams.abbreviation` via ESPN) instead of full names — `backend/app/mls/routers/fixtures.py`'s `_get_mls_last10`/`_get_mls_head_to_head` queries extended to select `ht.abbreviation`/`at.abbreviation`; `Fixture` type in `lib/api.ts` gained optional `home_code`/`away_code` (MLS only, undefined for WC — frontend falls back to full name via `r.home_code ?? r.home_name`). This is what actually fixes mobile: the previous full-team-name version (e.g. "New England Revolution") caused overflow at 375-390px that the removed `.last5-grid`/`.form-team` CSS in `globals.css` had been patching around; the patch is gone now that the real cause (long names in a narrow table column) is fixed at the data layer instead.
 - Verified live via Playwright: MLS match page desktop + mobile (390px, no document overflow, abbreviations render correctly), H2H tab against a real 9-game LAFC/LA Galaxy history (record chips and colored rows correct), WC match page desktop + mobile (zero regression — falls back to full country names since WC never sets `home_code`/`head_to_head`, still labeled "Last 5 Games" not "Last 10"). Zero console errors anywhere. `tsc --noEmit` clean.
 - Committed `a58a93b`, pushed to `origin/main`. `wc2026.db` left out of the commit per the existing convention (incidental dev-server data refresh, not real changes).
+
+### Day 11 (2026-07-28) — Attack/Defense Rating + 1-30 ranking
+
+Tyler sent over a methodology (screenshots in `MLS_fromPicsFromTyler/IMG_4986-4988`) for an opponent-adjusted Attack/Defense Rating and asked for it in the Important Stats section — this was the biggest remaining item on his list (MLS has had no attack/defense strength metric at all, unlike WC's Dixon-Coles Attack Strength).
+
+- **Data check first**: MLS had no xG data at all before this (`mls_team_stats.py` only pulled corners/shots/fouls from FotMob). Confirmed live that FotMob's same deep-stats endpoint also exposes `expected_goals_team`/`expected_goals_conceded_team` for MLS (30/30 teams matched) — season *totals*, same shape as the existing corners stat, so converted to per-game the same way.
+- **Methodology adaptation**: Tyler's formula (`Attack Rating = Team xG ÷ Opponent Average xGA`, computed per match then averaged) assumes per-match xG, which FotMob's team-level endpoint doesn't expose — only season aggregates. Adapted it to use each team's *real schedule* from `mls_fixtures` (correctly weighting repeat conference matchups) against opponents' season-average xG/xGA, rather than the literal per-match version. New `_compute_ratings()` in `mls_team_stats.py`:
+  - `Attack Rating(T) = T's xG/game ÷ mean(opponent's xGA/game, over T's actual 2026 schedule)`
+  - `Defense Rating(T) = T's xGA/game ÷ mean(opponent's xG/game, over T's actual 2026 schedule)` — lower is better
+  - Ranked 1-30 each direction. Verified live against the real 2026 season (16-18 games played per team so far): all 30 teams got a valid rank with no gaps or duplicates, numbers are sane (ratios centered around 1.00, e.g. league-leading attack Vancouver Whitecaps at 1.60/#1, worst at Sporting KC 0.63/#30).
+- New `mls_team_season_stats` columns (`xg`, `xga`, `attack_rating`, `defense_rating`, `attack_rank`, `defense_rank`), refreshed on the same 12h cadence as corners/shots/fouls. Wired into the fixture API via the existing `home_team_stats`/`away_team_stats` channel — no new top-level fixture fields, and deliberately **not** reusing WC's `attack_rating`/`xg_rating`/`xga_rating` field names (those are WC's Dixon-Coles numbers, a different metric on a different scale — collision would have been a real bug).
+- Frontend: two new Important-Stats rows ("Attack Rating", "Defense Rating", each with a `(#rank)` suffix) added to the shared `AttackRatingSection` in `MatchCard.tsx`, gated purely on data presence (same pattern as every other conditional row in that component) — so WC, which never populates these fields, renders byte-for-byte identical to before. Verified explicitly: screenshotted a WC match page before/after, confirmed "Attack Rating"/"Defense Rating" appear nowhere and the existing "Attack Strength" row is unaffected, zero console errors.
+- Verified live via Playwright on an MLS match page (desktop + 390px mobile, no overflow) with real refreshed data — rows render correctly with rank, caption explains the scale.
+- Noticed but did not touch: `mls_team_season_stats` has a handful of stale orphaned rows under old un-mapped FotMob team names (e.g. "DC United" instead of "D.C. United") — leftover from before `FOTMOB_NAME_TO_MLS_NAME` covered every team, harmless since the app only ever queries by the corrected `mls_teams.name`. Worth a cleanup pass sometime but out of scope here.
 
 ## Left to do
 

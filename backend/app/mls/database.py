@@ -140,5 +140,22 @@ def init_mls_db():
     except Exception:
         pass  # column already exists
 
+    # Migration: opponent-adjusted Attack/Defense Rating + 1-30 rank, added
+    # once FotMob's season-total xG/xGA stats were wired up alongside the
+    # existing corners/shots/fouls fetch — see app/mls/services/mls_team_stats.py
+    for stmt in (
+        "ALTER TABLE mls_team_season_stats ADD COLUMN xg REAL",
+        "ALTER TABLE mls_team_season_stats ADD COLUMN xga REAL",
+        "ALTER TABLE mls_team_season_stats ADD COLUMN attack_rating REAL",
+        "ALTER TABLE mls_team_season_stats ADD COLUMN defense_rating REAL",
+        "ALTER TABLE mls_team_season_stats ADD COLUMN attack_rank INTEGER",
+        "ALTER TABLE mls_team_season_stats ADD COLUMN defense_rank INTEGER",
+    ):
+        try:
+            cur.execute(stmt)
+            conn.commit()
+        except Exception:
+            pass  # column already exists
+
     conn.commit()
     conn.close()
