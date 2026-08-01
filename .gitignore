@@ -18,6 +18,7 @@ frontend/.env
 *.jpeg
 dev.log
 PROJECT_LOG.md
+MLS_BUILD_STATUS.md
 
 # Claude Code internal
 .claude/
