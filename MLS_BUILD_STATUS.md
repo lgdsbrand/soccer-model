@@ -1,4 +1,4 @@
-# MLS Section — Build Status (checkpoint: Day 12, Scoring Trends + multi-day Top Plays shipped; Goals/xG restored and stable since — see below)
+# MLS Section — Build Status (checkpoint: Day 13, live-site verification pass — MLS section considered feature-complete, see below)
 
 Plan file: `C:\Users\denis\.claude\plans\i-m-adding-an-mls-iterative-volcano.md`
 
@@ -187,13 +187,23 @@ sqlite3.OperationalError: database is locked
 1. **Top Plays carousel** — the dashboard's "Top Plays" section (best BTTS/O1.5/O2.5 match) used to only check *today* and hide itself entirely on a day with no MLS games (common with a 1-2x/week schedule) — bad for a demo. `GET /mls/fixtures/top-plays` now scans forward across the next ~2 weeks (`app/utils.py`'s new `get_day_bounds_et(offset_days)`, additive alongside the existing `get_today_bounds_et` used by WC) and returns the next few days that actually have plays (`{"days": [...]}`, up to 5). New `frontend/components/mls/TopPlaysCarousel.tsx` (client component) renders a day-pill switcher (MatchDayNav-style relative labels: "Today"/"Tomorrow"/"In N Days") defaulting to the first populated day. No LLM calls, no xg/xga — verified live via sustained health-checking (10 checks over ~2.5 min, all fast) before/after deploy.
 2. **Scoring Trends section** — per Tyler's windrawwin.com screenshots: for each MLS match card, added (a) a plain sentence per team per market ("Both teams have scored in 9 of 16 (56%) of New England Revolution's games this season," plus equivalent Over 1.5/Over 2.5 phrasing) and (b) a small compact table (BTTS/O1.5/O2.5 rows, count/pct per side, proportional bar) — explicitly *not* a full league table, computed from real finished `mls_fixtures` results this season, not the odds-derived `mls_match_probs` used by the existing top-of-card BTTS/O-goals chips (deliberately labeled "SCORING TRENDS," not "BTTS," to avoid confusing the two). New `_get_mls_scoring_trends()`/`_scoring_trends_from_rows()` in `fixtures.py`, mirroring `_get_mls_team_record`'s existing pattern; new `ScoringTrendsSection` in `MatchCard.tsx`, placed right after Team Records, gated on data presence (WC's endpoint never sets these fields — verified zero regression). Verified live: sentences match table values match raw API response; zero-games edge case checked directly against the DB (returns `pct: None`, no crash, never actually hit on a real 2026 fixture since all teams have games played by now).
 
+### Day 13 (2026-07-29) — Live-site verification pass
+
+Checked the production URLs directly (not localhost) for the first time since the Day 11 incident/fix:
+- `https://soccer-model-six.vercel.app/mls` — dashboard renders cleanly: Top Plays, today's schedule, recent results, Eastern/Western standings all populated with real data, no errors or "coming soon" placeholders.
+- `https://soccer-model.onrender.com/mls/fixtures/top-plays` — real JSON, BTTS/O1.5/O2.5 all populated across multiple upcoming days (e.g. BTTS 53.9%-71.5%, O1.5 77-88%, O2.5 53-73% across three fixtures checked), fixture IDs/timestamps/logos all present.
+
+**Conclusion**: MLS section considered feature-complete and stable on production as of today. This satisfies "Left to do" item 5 (final smoke test) for the pages checked — dashboard/Top Plays/standings confirmed live; match-detail, matches list, and mobile were not re-checked today (already verified live in earlier sessions, not expected to have regressed).
+
+One open item flagged by the user in this session — "some tweaks on the BTTS memo" — was raised but not specified further; nothing changed. Needs the user to clarify what it refers to before acting.
+
 ## Left to do
 
 1. ~~Finish verifying `odds_api.py` against a real Odds API key~~ — **done 2026-07-20**. Real key in `backend/.env`, live-verified, 3 real bugs found and fixed (see above). Local dev DB (`wc2026.db`) migrated in place (`over_1_5_pct` → `over_3_5_pct`, 0 rows lost — table was still empty pre-fix).
 2. ~~Mobile/responsive pass on the new MLS pages~~ — **done 2026-07-22** (Day 6), plus real-phone follow-up fixes **done 2026-07-23** (Day 7, items 1-2) from Tyler's actual screenshots. All committed and pushed.
 3. Confirm the "odds not yet available" empty state (for far-future fixtures with no posted lines) looks right, not broken. **Still open.**
 4. ~~Add `ODDS_API_KEY` to Render~~ — **done**, set directly in the Render dashboard (2026-07-24). `render.yaml` itself still doesn't list it, purely cosmetic since it's not synced from the file anyway.
-5. Final end-to-end smoke test against the deployed site — **partially done**: Top Plays confirmed live and working. Rest of the site (dashboard, matches, standings, match detail, mobile) not yet re-verified specifically on the production URL.
+5. Final end-to-end smoke test against the deployed site — **mostly done, 2026-07-29 (Day 13)**: dashboard, Top Plays (BTTS/O1.5/O2.5), and standings confirmed live and working directly on the production URL. Matches list, match detail, and mobile not re-checked today specifically (verified live in earlier sessions; low risk of regression).
 6. ~~Nothing has been committed to git yet~~ / ~~branch not pushed~~ — **done**. `b62693c`, `330e05d` (2026-07-22), then `055b28d`, `b8866b5`, `0585cba` (2026-07-23, Day 7) — **all pushed to `origin/main`**, branch even with origin as of end of Day 7.
 7. Backfilling further back than 2023 for head-to-head (currently 2023-2026 only) — only worth doing if a specific pair still looks thin.
 8. ~~O1.5 goals odds missing for MLS~~ — **done 2026-07-23** (Day 7 item 3). Was a missing-market gap (`alternate_totals`, per-event-only), not a missing-region gap — see Day 7 above.
@@ -201,5 +211,6 @@ sqlite3.OperationalError: database is locked
 
 ## Open questions for you
 - ~~Fix the suspended API-Football account?~~ — **decided 2026-07-27: leave it**, not worth fixing since MLS doesn't depend on it.
-- Ready to scope any of the still-open items above — empty-state check (item 3), full production smoke test (item 5), or the stale past-kickoff fixtures noticed Day 7 (item 9)?
+- Ready to scope any of the still-open items above — empty-state check (item 3), the stale past-kickoff fixtures noticed Day 7 (item 9)?
 - A `tyler` remote (`lgdsbrand/soccer-model.git`) exists locally but is still sitting on a pre-MLS commit (`fb8784d`) — worth pushing `main` there too, or does Tyler pull from `origin`?
+- **New (2026-07-29)**: what specifically needs tweaking on the "BTTS memo" — which text/label/section, and what should change?
