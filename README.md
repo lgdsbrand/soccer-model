@@ -128,6 +128,3 @@ Two separate services, deployed independently:
 - Win/draw/loss, BTTS, and O1.5/O2.5/O3.5 goals-total probabilities are devigged directly from live bookmaker odds (The Odds API), not a fitted model
 - Attack/Defense Strength (ranked 1-30) is computed from each team's real FotMob season xG/xGA, adjusted against the actual strength of opponents faced so far this season
 
-## Project History
-
-`MLS_BUILD_STATUS.md` in this repo has a full day-by-day build log of the MLS section — useful background if extending it further.
